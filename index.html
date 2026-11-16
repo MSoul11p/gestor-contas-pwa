@@ -1085,7 +1085,11 @@ async function write(snapshot,revision){if(!hasData)throw err('NOT_SENT','Dados 
 document.addEventListener('DOMContentLoaded',()=>{el('pwa-connect').onclick=()=>{if(!client)return;el('pwa-connect').disabled=true;try{client.requestAccessToken({prompt:'select_account'});}catch(e){gate(e.message);}};});
 return {ready,gate,loaded,busy,read,write,difference};
 })();
-</script></head>
+</script>
+  <link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#5b21b6">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+</head>
 
 <body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-bar"><span>C2 · Gravação manual</span><span id="pwa-status" role="status">A iniciar…</span><button type="button" id="pwa-save" disabled>Guardar teste</button><button type="button" id="pwa-draft" hidden>Rascunho anterior</button></div><div id="pwa-gate"><section><h1>Gestor de Contas</h1><h2>Confirmação corrigida · C2</h2><p>Exporta um backup antes do teste. Não há gravação automática.</p><button type="button" id="pwa-connect" disabled>Entrar com Google</button><pre id="pwa-message" role="status">A carregar autorização…</pre></section></div><div id="pwa-busy" hidden role="status">A carregar…</div>
 
