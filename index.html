@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Gestor de Contas — teste de ligação</title><style>body{margin:0;padding:24px;background:#f5f3ff;color:#172033;font-family:system-ui,sans-serif}main{max-width:640px;margin:40px auto;padding:24px;background:white;border-radius:20px}button{padding:14px 18px;border:0;border-radius:12px;background:#7e22ce;color:white;font:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:wait}pre{padding:16px;background:#f1f5f9;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere}</style></head>
+<body><main><h1>Gestor de Contas</h1><h2>Teste de ligação privada</h2><p>Autoriza com a conta Google proprietária do script. Este teste não envia alterações aos pagamentos.</p><button id="connect" disabled>A carregar autorização…</button><pre id="result" role="status" aria-live="polite">A aguardar a biblioteca Google.</pre><p>Esta é apenas uma página de teste, não a aplicação final. Os dados recebidos não são apresentados nem guardados por esta página.</p></main>
+<script>
+"use strict";
+const CLIENT_ID="602989015235-94opkho5rdfeh5lsck0e5efa38h7jh09.apps.googleusercontent.com";
+const ENDPOINT="https://script.googleapis.com/v1/scripts/AKfycbxBVk9Nm2TSl31AtAKmXHtv6G8mbWAzd2SX311iEKyVSgU6McrebEaOyCwwYC60WenrBg:run";
+const SCOPES=["https://www.googleapis.com/auth/script.scriptapp","https://www.googleapis.com/auth/script.external_request","https://www.googleapis.com/auth/spreadsheets"];
+const button=document.getElementById("connect"),result=document.getElementById("result");let client;
+function unlock(){button.disabled=false;button.textContent="Autorizar e testar ligação";}
+function showError(message){result.textContent=message;unlock();}
+async function testConnection(token){
+if(token.error){showError("Erro de autorização: "+token.error);return;}
+try{
+if(!google.accounts.oauth2.hasGrantedAllScopes(token,...SCOPES)){showError("Faltam permissões. Repete o teste e verifica os três âmbitos.");return;}
+result.textContent="Autorizado. A consultar o estado no servidor…";
+const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),90000);let response;
+try{response=await fetch(ENDPOINT,{method:"POST",headers:{Authorization:"Bearer "+token.access_token,"Content-Type":"application/json"},body:JSON.stringify({function:"getAppState",parameters:[],devMode:false}),cache:"no-store",signal:controller.signal});}finally{clearTimeout(timeout);}
+const data=await response.json();
+if(!response.ok||data.error){const apiError=data.error||{},detail=(apiError.details||[]).map(item=>item.errorMessage||"").filter(Boolean).join(" ");showError("Falha na API — HTTP "+response.status+"\n"+(apiError.message||"Erro desconhecido")+(detail?"\n"+detail:""));return;}
+const state=data.response?.result;
+if(!data.done||!state||typeof state.revision!=="number"){showError("A API respondeu, mas não devolveu um estado válido.");return;}
+result.textContent="Ligação confirmada.\nRevisão: "+state.revision+"\nDados guardados: "+(state.state?"sim":"não")+"\nNenhuma chamada a saveAppState foi feita.";
+}catch(error){showError(error.name==="AbortError"?"O teste excedeu 90 segundos. Tenta novamente.":"Falha de ligação: "+error.message);}finally{token.access_token="";unlock();}}
+function ready(){client=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPES.join(" "),callback:testConnection,error_callback:error=>showError("Autorização interrompida: "+(error.type||"erro desconhecido"))});unlock();result.textContent="Pronto. Clica no botão para testar com a tua conta Google.";}
+button.addEventListener("click",()=>{button.disabled=true;result.textContent="A abrir a autorização Google…";try{client.requestAccessToken({prompt:"select_account"});}catch(error){showError(error.message);}});
+</script><script src="https://accounts.google.com/gsi/client" async defer onload="ready()" onerror="showError('Não foi possível carregar a biblioteca Google. Atualiza a página.')"></script></body></html>
