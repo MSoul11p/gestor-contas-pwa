@@ -1056,27 +1056,29 @@
     }
   </style>
 
-<style>body{padding-top:44px!important}#pwa-read-label{position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#5b21b6;color:white;padding:10px;text-align:center;font:13px system-ui}#pwa-login{position:fixed;inset:0;z-index:2147483647;background:#f5f3ff;color:#172033;display:grid;place-items:center;padding:24px;font:16px system-ui}#pwa-login[hidden]{display:none}#pwa-login section{max-width:560px;background:white;padding:28px;border-radius:20px}#pwa-login button{background:#7e22ce;color:white;border:0;border-radius:10px;padding:14px;font:inherit}#pwa-login pre{white-space:pre-wrap;overflow-wrap:anywhere}#sync-init,#sync-import,#sync-save{display:none!important}</style>
+<style>body{padding-top:55px!important}#pwa-bar{position:fixed;inset:0 0 auto;z-index:2147483645;background:#5b21b6;color:white;padding:8px;text-align:center;font:13px system-ui}#pwa-save{padding:7px 12px;background:white;color:#5b21b6;border-radius:8px;border:0}#pwa-save:disabled{opacity:.5}#pwa-gate,#pwa-busy{position:fixed;inset:0;z-index:2147483647;background:#f5f3ff;color:#172033;display:grid;place-items:center;padding:24px;font:16px system-ui}#pwa-gate[hidden],#pwa-busy[hidden]{display:none}#pwa-gate section{max-width:560px;background:white;padding:28px;border-radius:20px}#pwa-gate button{padding:14px;background:#7e22ce;color:white;border:0;border-radius:10px}#pwa-message{white-space:pre-wrap;overflow-wrap:anywhere}#sync-init,#sync-import{display:none!important}</style>
 <script>
-window.PWARead=(()=>{
+window.PWAManual=(()=>{
 const ID='602989015235-94opkho5rdfeh5lsck0e5efa38h7jh09.apps.googleusercontent.com';
-const ENDPOINT='https://script.googleapis.com/v1/scripts/AKfycbxBVk9Nm2TSl31AtAKmXHtv6G8mbWAzd2SX311iEKyVSgU6McrebEaOyCwwYC60WenrBg:run';
+const API='https://script.googleapis.com/v1/scripts/AKfycbxBVk9Nm2TSl31AtAKmXHtv6G8mbWAzd2SX311iEKyVSgU6McrebEaOyCwwYC60WenrBg:run';
 const scopes=['https://www.googleapis.com/auth/script.scriptapp','https://www.googleapis.com/auth/script.external_request','https://www.googleapis.com/auth/spreadsheets'];
-let token='',expires=0,client,waiting=[];
-const box=()=>document.getElementById('pwa-login'),msg=()=>document.getElementById('pwa-login-message');
-function fail(message){box().hidden=false;msg().textContent=message;document.getElementById('pwa-connect').disabled=false;}
-function loaded(){box().hidden=true;}
-function ready(){client=google.accounts.oauth2.initTokenClient({client_id:ID,scope:scopes.join(' '),callback:r=>{if(r.error||!google.accounts.oauth2.hasGrantedAllScopes(r,...scopes)){const e=new Error(r.error||'Faltam permissões.');waiting.splice(0).forEach(w=>w.reject(e));fail(e.message);return;}token=r.access_token;expires=Date.now()+(Number(r.expires_in||3600)-60)*1000;msg().textContent='A carregar os dados existentes…';waiting.splice(0).forEach(w=>w.resolve());},error_callback:e=>{const err=new Error('Autorização interrompida: '+e.type);waiting.splice(0).forEach(w=>w.reject(err));fail(err.message);}});document.getElementById('pwa-connect').disabled=false;msg().textContent='Entra com a conta proprietária do script. Esta versão não grava alterações.';}
-async function call(name,args){if(name!=='getAppState')throw Error('Versão de consulta: operação desativada. Usa a aplicação original para editar.');if(!token||Date.now()>=expires){box().hidden=false;msg().textContent='Clica em Entrar para autorizar a leitura.';await new Promise((resolve,reject)=>waiting.push({resolve,reject}));}const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),90000);try{const r=await fetch(ENDPOINT,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({function:name,parameters:args,devMode:false}),cache:'no-store',signal:controller.signal});const data=await r.json();if(!r.ok||data.error){if(r.status===401){token='';expires=0;}const e=data.error||{};throw Error((e.message||'HTTP '+r.status)+' '+(e.details||[]).map(d=>d.errorMessage||'').join(' '));}if(!data.done||!data.response)throw Error('Resposta incompleta da API.');return data.response.result;}finally{clearTimeout(timeout);}}
-function chain(success,failure){return new Proxy({},{get:(_,name)=>name==='withSuccessHandler'?fn=>chain(fn,failure):name==='withFailureHandler'?fn=>chain(success,fn):(...args)=>{call(String(name),args).then(value=>{if(success)success(value);}).catch(err=>{if(failure)failure(err);else fail(err.message);});}});}
+let token='',expires=0,client,waiting=[],loadedOnce=false;
+const gate=()=>document.getElementById('pwa-gate'),message=()=>document.getElementById('pwa-message');
+function saving(v){document.getElementById('pwa-busy').hidden=!v;}
+function fail(m){gate().hidden=false;message().textContent=m;document.getElementById('pwa-connect').disabled=false;}
+function loaded(){loadedOnce=true;gate().hidden=true;}
+function ready(){client=google.accounts.oauth2.initTokenClient({client_id:ID,scope:scopes.join(' '),callback:r=>{document.getElementById('pwa-connect').disabled=false;if(r.error||!google.accounts.oauth2.hasGrantedAllScopes(r,...scopes)){const e=new Error(r.error||'Permissões incompletas.');waiting.splice(0).forEach(w=>w.reject(e));fail(e.message);return;}token=r.access_token;expires=Date.now()+(Number(r.expires_in||3600)-60)*1000;message().textContent='Autorizado. A carregar…';if(loadedOnce)gate().hidden=true;waiting.splice(0).forEach(w=>w.resolve());},error_callback:e=>{const err=new Error('Autorização interrompida: '+e.type);waiting.splice(0).forEach(w=>w.reject(err));fail(err.message);}});document.getElementById('pwa-connect').disabled=false;message().textContent='Entra com a conta proprietária. Gravação apenas por confirmação manual.';}
+async function request(name,args){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),90000);try{const r=await fetch(API,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({function:name,parameters:args,devMode:false}),cache:'no-store',signal:controller.signal});const data=await r.json();if(!r.ok||data.error){if(r.status===401){token='';expires=0;}const e=data.error||{};throw Error((e.message||'HTTP '+r.status)+' '+(e.details||[]).map(d=>d.errorMessage||'').join(' '));}if(!data.done||!data.response)throw Error('Resposta incompleta.');return data.response.result;}finally{clearTimeout(timeout);}}
+async function call(name,args){if(!['getAppState','saveAppState'].includes(name))throw Error('Operação bloqueada.');if(!token||Date.now()>=expires){if(name==='saveAppState'){fail('Autorização expirada. Entra novamente. As alterações continuam pendentes; exporta backup e relê antes de repetir.');throw Error('Autorização expirada; nada foi enviado nesta tentativa.');}gate().hidden=false;await new Promise((resolve,reject)=>waiting.push({resolve,reject}));}if(name==='saveAppState'){if(!loadedOnce||args.length!==2||!Number.isInteger(args[1])||!args[0]?.appData||!args[0]?.credits)throw Error('Estado ou revisão inválidos.');const result=await request(name,args);if(result?.conflict)return result;if(!Number.isInteger(result?.revision)||result.revision!==args[1]+1)throw Error('Resposta inválida. Não repetir sem reler.');const verify=await request('getAppState',[]);if(verify.revision!==result.revision||JSON.stringify(verify.state)!==JSON.stringify(args[0]))throw Error('Não foi possível confirmar o estado após gravar. Exporta backup e relê.');return result;}return request(name,args);}
+function chain(ok,bad){return new Proxy({},{get:(_,name)=>name==='withSuccessHandler'?f=>chain(f,bad):name==='withFailureHandler'?f=>chain(ok,f):(...args)=>{call(String(name),args).then(v=>{if(ok)ok(v);}).catch(e=>{if(bad)bad(e);else fail(e.message);});}});}
 window.google=window.google||{};google.script={run:chain()};
 document.addEventListener('DOMContentLoaded',()=>{document.getElementById('pwa-connect').onclick=()=>{if(!client)return;document.getElementById('pwa-connect').disabled=true;try{client.requestAccessToken({prompt:'select_account'});}catch(e){fail(e.message);}};});
-return {ready,loaded,fail};
+return {ready,loaded,fail,saving};
 })();
 </script>
 </head>
 
-<body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-read-label">Versão de consulta · Não envia alterações · Edita na aplicação original</div><div id="pwa-login"><section><h1>Gestor de Contas</h1><h2>Validar a interface</h2><p>Os dados são carregados após autorização. Esta versão não guarda alterações.</p><button id="pwa-connect" disabled>Entrar com Google</button><pre id="pwa-login-message" role="status">A carregar autorização…</pre></section></div>
+<body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-bar">Teste · Gravação manual <button id="pwa-save" disabled>Guardar teste</button></div><div id="pwa-gate"><section><h1>Gestor de Contas</h1><h2>Gravação controlada</h2><p>Exporta um backup antes do teste. Nenhuma alteração é enviada automaticamente.</p><button id="pwa-connect" disabled>Entrar com Google</button><pre id="pwa-message" role="status">A carregar autorização…</pre></section></div><div id="pwa-busy" hidden role="status">A guardar e a confirmar no servidor. Não feches esta página…</div>
 
 
   <!-- SPLASH SCREEN ANIMADO COM TÍTULO "GESTOR DE CONTAS" -->
@@ -1622,11 +1624,11 @@ return {ready,loaded,fail};
 
 
         function saveDataToLocalStorage() {
-            void 0; /* Consulta sem persistência financeira. */
+            localStorage.setItem('contas_pwa_manual_v1', JSON.stringify(appData));
         }
 
 
-        function resetToDefaultData() { alert("Reposição desativada na consulta."); return;
+        function resetToDefaultData() { alert("Reposição desativada na PWA."); return;
 
             if (confirm("Deseja repor as contas e dados padrão da planilha?")) {
                 appData = JSON.parse(JSON.stringify({ accounts: DEFAULT_ACCOUNTS, ganhos: DEFAULT_GANHOS }));
@@ -2452,15 +2454,15 @@ return {ready,loaded,fail};
             if (creditTab === 'casa') {
                 rawList = CREDIT_CASA_DATA;
                 creditName = '🏠 Crédito Casa';
-                initialAmount = Number(rawList.find(x => x.status === 'BEGINNING')?.balance || rawList[0]?.balance || 0);
+                initialAmount = Number(rawList.find(x=>x.status==='BEGINNING')?.balance || rawList[0]?.balance || 0);
             } else if (creditTab === 'carro') {
                 rawList = CREDIT_CARRO_DATA;
                 creditName = '🚘 Crédito Carro';
-                initialAmount = Number(rawList.find(x => x.status === 'BEGINNING')?.balance || rawList[0]?.balance || 0);
+                initialAmount = Number(rawList.find(x=>x.status==='BEGINNING')?.balance || rawList[0]?.balance || 0);
             } else if (creditTab === 'credito_ab') {
                 rawList = CREDIT_AB_DATA;
                 creditName = '💳 Crédito AB';
-                initialAmount = Number(rawList.find(x => x.status === 'BEGINNING')?.balance || rawList[0]?.balance || 0);
+                initialAmount = Number(rawList.find(x=>x.status==='BEGINNING')?.balance || rawList[0]?.balance || 0);
             }
 
 
@@ -2748,7 +2750,7 @@ playSoundForStatus=async function(status){
     
 (() => {
   const online = Boolean(typeof google !== 'undefined' && google.script && google.script.run);
-  const DRAFT = 'contas_pwa_leitura_draft_v1';
+  const DRAFT = 'contas_pwa_manual_draft_v1';
   let ready = false, busy = false, dirty = false, conflict = false, empty = false;
   let revision = 0, timer, started = false;
   const el = id => document.getElementById(id);
@@ -2778,7 +2780,7 @@ playSoundForStatus=async function(status){
       if (items && Array.isArray(items)) target.splice(0, target.length, ...items);
     });
     appData.accounts.forEach(migrateAnnualStates);
-    try { void 0; /* Consulta sem persistência financeira. */ } catch (e) {}
+    try { localStorage.setItem('contas_pwa_manual_v1', JSON.stringify(appData)); } catch (e) {}
     renderApp();
   }
 
@@ -2802,14 +2804,14 @@ playSoundForStatus=async function(status){
     })[mode] || 'Estado da ligação';
 
     el('sync-save').disabled = !online || !ready || busy || conflict || !dirty;
+    document.getElementById('pwa-save').disabled = el('sync-save').disabled;
     el('sync-read').disabled = !online || busy;
     el('sync-import').disabled = busy || conflict || (online && !ready && !empty);
     el('sync-init').hidden = !online || !empty;
     el('sync-init').disabled = busy;
   }
 
-  function changed() { return;
-
+  function changed() {
     if (!online || !ready) return;
     dirty = true;
     stash();
@@ -2817,19 +2819,19 @@ playSoundForStatus=async function(status){
       show('error', 25, 'Conflito: faz backup e recarrega.', false);
       return;
     }
-    show('pending', 25, 'Alterações preparadas; a aguardar envio.', true);
+    show('pending', 25, 'Alterações pendentes. Usa Guardar teste para confirmar o envio.', false);
     clearTimeout(timer);
-    timer = setTimeout(save, 700);
+    /* Gravação manual. */
   }
 
-  function save() { alert("Versão de consulta: usa a aplicação original para editar."); return;
-
+  function save() {
     if (!online || !ready || busy || conflict || !dirty) return;
+    if (!confirm('Guardar no Google Sheets?\n\nConfirma que exportaste um backup. O relatório GESTOR_GERAL será reconstruído: notas e fórmulas manuais dessa aba são apagadas.')) return;
     const data = pack(), sent = JSON.stringify(data);
-    busy = true;
+    busy = true; window.PWAManual.saving(true);
     show('saving', 50, 'A enviar para a aba GESTOR_GERAL…', true);
     google.script.run.withSuccessHandler(result => {
-      busy = false;
+      busy = false; window.PWAManual.saving(false);
       if (result.conflict) {
         conflict = true;
         show('error', 50, 'Outra sessão guardou primeiro.', false);
@@ -2841,16 +2843,17 @@ playSoundForStatus=async function(status){
       if (dirty) {
         stash();
         show('pending', 25, 'Há novas alterações; a reenviar…', true);
-        timer = setTimeout(save, 500);
+        /* Nova confirmação necessária. */
       } else {
         forget();
         show('saved', 100, 'Guardado no Sheets às ' + new Date(result.updatedAt).toLocaleTimeString('pt-PT') + '.', false);
       }
     }).withFailureHandler(error => {
-      busy = false;
+      busy = false; window.PWAManual.saving(false);
+      conflict = true;
       dirty = true;
       stash();
-      show('error', 50, 'Não guardado: ' + (error.message || String(error)), false);
+      show('error', 50, 'Resultado não confirmado. Exporta backup e relê o servidor antes de repetir: ' + (error.message || String(error)), false);
     }).saveAppState(data, revision);
   }
 
@@ -2866,25 +2869,25 @@ playSoundForStatus=async function(status){
       empty = !result.state;
       try {
         if (empty) {
-          window.PWARead.fail('O servidor não devolveu dados. Não inicializes nada.');
+          window.PWAManual.fail('Servidor sem dados. Inicialização bloqueada.');
           ready = false; dirty = false; conflict = false;
           show('empty', 0, 'Aba vazia. Revê os dados antes de inicializar.', false);
           return;
         }
         apply(result.state);
-        window.PWARead.loaded();
+        window.PWAManual.loaded();
         ready = true; dirty = false; conflict = false;
         forget();
         show('loaded', 100, 'Dados carregados de ' + result.sheetName + '.', false);
       } catch (e) {
         ready = false;
         show('error', 0, 'Erro ao interpretar dados: ' + e.message, false);
-window.PWARead.fail(e.message);
+window.PWAManual.fail(e.message);
       }
     }).withFailureHandler(error => {
       busy = false;
       show('error', 0, 'Falha ao carregar: ' + (error.message || String(error)), false);
-window.PWARead.fail(error.message || String(error));
+ready = false; window.PWAManual.fail(error.message || String(error));
     }).getAppState();
   }
 
@@ -2896,7 +2899,7 @@ window.PWARead.fail(error.message || String(error));
     setTimeout(() => URL.revokeObjectURL(url), 3000);
   }
 
-  async function importBackup(event) { event.target.value=""; alert("Importação desativada na consulta."); return;
+  async function importBackup(event) { event.target.value=""; alert("Importação desativada durante o teste."); return;
 
     try {
       const file = event.target.files[0];
@@ -2927,6 +2930,7 @@ window.PWARead.fail(error.message || String(error));
     saveDataToLocalStorage();
   };
 
+  window.addEventListener('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
   document.addEventListener('DOMContentLoaded', () => {
     started = true;
     const open = el('settings-open'), badge = document.createElement('button');
@@ -2941,16 +2945,13 @@ window.PWARead.fail(error.message || String(error));
       });
     };
     el('sync-save').onclick = save;
+    document.getElementById('pwa-save').onclick = save;
     el('sync-read').onclick = () => load(true);
     el('sync-backup').onclick = backup;
     el('sync-import').onclick = () => el('sync-file').click();
     el('sync-file').onchange = importBackup;
-    el('sync-init').onclick = () => {
-      if (!online || busy || !empty) return;
-      if (!confirm('Inicializar a folha com os dados visíveis?')) return;
-      ready = true; dirty = true; conflict = false; stash(); save();
-    };
-    if (online) load();
+    el('sync-init').onclick = () => alert('Inicialização bloqueada na PWA.');
+    if (online) { if (localStorage.getItem(DRAFT)) { alert('Existe um rascunho anterior. Será descarregado para recuperação manual.'); const u=URL.createObjectURL(new Blob([localStorage.getItem(DRAFT)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='rascunho-pwa-'+Date.now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),3000); } load(); }
     else show('local', 0, 'Modo local: abre o link /exec do Apps Script.', false);
   });
 })();
@@ -3579,9 +3580,6 @@ showCalendarDayDetails=function(day){detail14(day);const list=calAccounts11(day)
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paid14);else paid14();
 })();
   </script>
-<script>
-document.addEventListener('click',function(e){const target=e.target.closest('button,[onclick]');if(!target)return;const action=target.getAttribute('onclick')||'';if(/cycleStatus|openMonth10|openEdit|openNew|handleCreate|markCredit|resetToDefault|deleteCategory|deleteAccount|togglePaid|editGanho|editIncome|openGanho/i.test(action)||['btn-new-category','sync-init','sync-import','sync-save'].includes(target.id)){e.preventDefault();e.stopImmediatePropagation();alert('Versão de consulta. Edita na aplicação original.');}},true);
-document.addEventListener('submit',function(e){e.preventDefault();e.stopImmediatePropagation();alert('A gravação está desativada nesta versão de consulta.');},true);
-</script><script src="https://accounts.google.com/gsi/client" async defer onload="PWARead.ready()" onerror="PWARead.fail('Não foi possível carregar a autorização Google. Atualiza a página.')"></script></body>
+<script src="https://accounts.google.com/gsi/client" async defer onload="PWAManual.ready()" onerror="PWAManual.fail('Falha ao carregar autorização Google. Atualiza a página.')"></script></body>
 
 </html>
