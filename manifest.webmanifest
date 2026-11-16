@@ -1,0 +1,33 @@
+{
+  "id": "/gestor-contas-pwa/",
+  "name": "Gestor de Contas",
+  "short_name": "Contas",
+  "description": "Gestor de contas pessoais com dados sincronizados com Google Sheets.",
+  "lang": "pt-PT",
+  "start_url": "/gestor-contas-pwa/",
+  "scope": "/gestor-contas-pwa/",
+  "display": "standalone",
+  "background_color": "#f5f3ff",
+  "theme_color": "#5b21b6",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
