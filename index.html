@@ -1055,30 +1055,39 @@
       color: #fda4af !important;
     }
   </style>
-
-<style>body{padding-top:55px!important}#pwa-bar{position:fixed;inset:0 0 auto;z-index:2147483645;background:#5b21b6;color:white;padding:8px;text-align:center;font:13px system-ui}#pwa-save{padding:7px 12px;background:white;color:#5b21b6;border-radius:8px;border:0}#pwa-save:disabled{opacity:.5}#pwa-gate,#pwa-busy{position:fixed;inset:0;z-index:2147483647;background:#f5f3ff;color:#172033;display:grid;place-items:center;padding:24px;font:16px system-ui}#pwa-gate[hidden],#pwa-busy[hidden]{display:none}#pwa-gate section{max-width:560px;background:white;padding:28px;border-radius:20px}#pwa-gate button{padding:14px;background:#7e22ce;color:white;border:0;border-radius:10px}#pwa-message{white-space:pre-wrap;overflow-wrap:anywhere}#sync-init,#sync-import{display:none!important}</style>
-<script>
-window.PWAManual=(()=>{
+<style>body{padding-top:70px!important}#pwa-bar{position:fixed;inset:0 0 auto;z-index:2147483645;background:#5b21b6;color:white;padding:8px;text-align:center;font:12px system-ui;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}#pwa-bar button{padding:7px;background:white;color:#5b21b6;border:0;border-radius:8px}#pwa-bar button:disabled{opacity:.5}#pwa-gate,#pwa-busy{position:fixed;inset:0;z-index:2147483647;background:#f5f3ff;color:#172033;display:grid;place-items:center;padding:24px;font:16px system-ui}#pwa-busy{z-index:2147483646}#pwa-gate[hidden],#pwa-busy[hidden]{display:none}#pwa-gate section{max-width:560px;background:white;padding:28px;border-radius:20px}#pwa-gate button{padding:14px;background:#7e22ce;color:white;border:0;border-radius:10px}#pwa-message{white-space:pre-wrap;overflow-wrap:anywhere}#sync-init,#sync-import{display:none!important}</style><script>
+window.PWASync=(()=>{
 const ID='602989015235-94opkho5rdfeh5lsck0e5efa38h7jh09.apps.googleusercontent.com';
 const API='https://script.googleapis.com/v1/scripts/AKfycbxBVk9Nm2TSl31AtAKmXHtv6G8mbWAzd2SX311iEKyVSgU6McrebEaOyCwwYC60WenrBg:run';
 const scopes=['https://www.googleapis.com/auth/script.scriptapp','https://www.googleapis.com/auth/script.external_request','https://www.googleapis.com/auth/spreadsheets'];
-let token='',expires=0,client,waiting=[],loadedOnce=false;
-const gate=()=>document.getElementById('pwa-gate'),message=()=>document.getElementById('pwa-message');
-function saving(v){document.getElementById('pwa-busy').hidden=!v;}
-function fail(m){gate().hidden=false;message().textContent=m;document.getElementById('pwa-connect').disabled=false;}
-function loaded(){loadedOnce=true;gate().hidden=true;}
-function ready(){client=google.accounts.oauth2.initTokenClient({client_id:ID,scope:scopes.join(' '),callback:r=>{document.getElementById('pwa-connect').disabled=false;if(r.error||!google.accounts.oauth2.hasGrantedAllScopes(r,...scopes)){const e=new Error(r.error||'Permissões incompletas.');waiting.splice(0).forEach(w=>w.reject(e));fail(e.message);return;}token=r.access_token;expires=Date.now()+(Number(r.expires_in||3600)-60)*1000;message().textContent='Autorizado. A carregar…';if(loadedOnce)gate().hidden=true;waiting.splice(0).forEach(w=>w.resolve());},error_callback:e=>{const err=new Error('Autorização interrompida: '+e.type);waiting.splice(0).forEach(w=>w.reject(err));fail(err.message);}});document.getElementById('pwa-connect').disabled=false;message().textContent='Entra com a conta proprietária. Gravação apenas por confirmação manual.';}
-async function request(name,args){const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),90000);try{const r=await fetch(API,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({function:name,parameters:args,devMode:false}),cache:'no-store',signal:controller.signal});const data=await r.json();if(!r.ok||data.error){if(r.status===401){token='';expires=0;}const e=data.error||{};throw Error((e.message||'HTTP '+r.status)+' '+(e.details||[]).map(d=>d.errorMessage||'').join(' '));}if(!data.done||!data.response)throw Error('Resposta incompleta.');return data.response.result;}finally{clearTimeout(timeout);}}
-async function call(name,args){if(!['getAppState','saveAppState'].includes(name))throw Error('Operação bloqueada.');if(!token||Date.now()>=expires){if(name==='saveAppState'){fail('Autorização expirada. Entra novamente. As alterações continuam pendentes; exporta backup e relê antes de repetir.');throw Error('Autorização expirada; nada foi enviado nesta tentativa.');}gate().hidden=false;await new Promise((resolve,reject)=>waiting.push({resolve,reject}));}if(name==='saveAppState'){if(!loadedOnce||args.length!==2||!Number.isInteger(args[1])||!args[0]?.appData||!args[0]?.credits)throw Error('Estado ou revisão inválidos.');const result=await request(name,args);if(result?.conflict)return result;if(!Number.isInteger(result?.revision)||result.revision!==args[1]+1)throw Error('Resposta inválida. Não repetir sem reler.');const verify=await request('getAppState',[]);if(verify.revision!==result.revision||JSON.stringify(verify.state)!==JSON.stringify(args[0]))throw Error('Não foi possível confirmar o estado após gravar. Exporta backup e relê.');return result;}return request(name,args);}
-function chain(ok,bad){return new Proxy({},{get:(_,name)=>name==='withSuccessHandler'?f=>chain(f,bad):name==='withFailureHandler'?f=>chain(ok,f):(...args)=>{call(String(name),args).then(v=>{if(ok)ok(v);}).catch(e=>{if(bad)bad(e);else fail(e.message);});}});}
-window.google=window.google||{};google.script={run:chain()};
-document.addEventListener('DOMContentLoaded',()=>{document.getElementById('pwa-connect').onclick=()=>{if(!client)return;document.getElementById('pwa-connect').disabled=true;try{client.requestAccessToken({prompt:'select_account'});}catch(e){fail(e.message);}};});
-return {ready,loaded,fail,saving};
+let token='',expires=0,client,waiters=[],loadRequested=false,hasData=false;
+const el=id=>document.getElementById(id);
+function err(code,message){const e=new Error(message);e.code=code;return e;}
+function difference(a,b,path='$'){
+ if(a===b)return null;
+ if(a===null||b===null||typeof a!==typeof b)return path;
+ if(typeof a!=='object')return path;
+ if(Array.isArray(a)!==Array.isArray(b))return path;
+ if(Array.isArray(a)){if(a.length!==b.length)return path+'.length';for(let i=0;i<a.length;i++){const d=difference(a[i],b[i],path+'['+i+']');if(d)return d;}return null;}
+ const ak=Object.keys(a).sort(),bk=Object.keys(b).sort();
+ for(const k of [...new Set([...ak,...bk])].sort()){if(!Object.prototype.hasOwnProperty.call(a,k)||!Object.prototype.hasOwnProperty.call(b,k))return path+'['+JSON.stringify(k)+']';const d=difference(a[k],b[k],path+'['+JSON.stringify(k)+']');if(d)return d;}
+ return null;
+}
+function gate(message){el('pwa-gate').hidden=false;el('pwa-message').textContent=message;el('pwa-connect').disabled=!client;}
+function loaded(){hasData=true;el('pwa-gate').hidden=true;}
+function busy(v,text){el('pwa-busy').hidden=!v;if(text)el('pwa-busy').textContent=text;}
+function ready(){client=google.accounts.oauth2.initTokenClient({client_id:ID,scope:scopes.join(' '),callback:r=>{el('pwa-connect').disabled=false;if(r.error||!google.accounts.oauth2.hasGrantedAllScopes(r,...scopes)){const e=err('AUTH','Autorização incompleta ou recusada.');waiters.splice(0).forEach(w=>w.reject(e));gate(e.message);return;}token=r.access_token;expires=Date.now()+(Number(r.expires_in||3600)-60)*1000;el('pwa-gate').hidden=true;waiters.splice(0).forEach(w=>w.resolve());if(loadRequested&&!hasData)window.dispatchEvent(new Event('pwa-retry-load'));},error_callback:r=>{const e=err('AUTH','Entrada interrompida: '+r.type);waiters.splice(0).forEach(w=>w.reject(e));gate(e.message);}});el('pwa-connect').disabled=false;el('pwa-message').textContent='Versão C2 — confirmação corrigida. Entra com a conta proprietária.';}
+function validToken(){return !!token&&Date.now()<expires;}
+async function authorizeRead(){loadRequested=true;if(validToken())return;gate('Clica em Entrar com Google para carregar os dados.');await new Promise((resolve,reject)=>waiters.push({resolve,reject}));}
+async function request(name,args){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);try{let response;try{response=await fetch(API,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({function:name,parameters:args,devMode:false}),cache:'no-store',signal:controller.signal});}catch(e){throw err('NETWORK',e.name==='AbortError'?'Tempo de espera excedido.':'Falha de rede ao obter a resposta.');}let data;try{data=await response.json();}catch(e){throw err('RESPONSE','A API não devolveu JSON válido.');}if(!response.ok||data.error){if(response.status===401){token='';expires=0;}const detail=data.error||{};throw err(response.status===401?'AUTH':'API',(detail.message||'HTTP '+response.status)+' '+(detail.details||[]).map(d=>d.errorMessage||'').join(' '));}if(!data.done||!data.response)throw err('RESPONSE','Resposta incompleta da API.');return data.response.result;}finally{clearTimeout(timer);}}
+async function read(){await authorizeRead();return request('getAppState',[]);}
+async function write(snapshot,revision){if(!hasData)throw err('NOT_SENT','Dados ainda não carregados. Nada enviado.');if(!validToken()){gate('Sessão expirada. Entra novamente, depois usa Guardar teste. As alterações continuam pendentes.');throw err('AUTH_NOT_SENT','Sessão expirada. Nada enviado nesta tentativa.');}if(!Number.isInteger(revision)||revision<1)throw err('NOT_SENT','Revisão inválida. Nada enviado.');let result;try{result=await request('saveAppState',[snapshot,revision]);}catch(e){e.code=e.code==='AUTH'?'AUTH_NOT_SENT':'WRITE_UNCERTAIN';throw e;}if(result?.conflict)throw err('CONFLICT','O servidor está na revisão '+result.revision+'; esta sessão tinha a revisão '+revision+'. Nada gravado por esta tentativa.');if(!Number.isInteger(result?.revision)||result.revision!==revision+1)throw err('WRITE_UNCERTAIN','Resposta de gravação inesperada. Não repetir sem reler.');let verify;try{verify=await request('getAppState',[]);}catch(e){throw err('VERIFY_READ','O servidor respondeu que gravou a revisão '+result.revision+', mas a releitura falhou: '+e.message);}if(verify?.revision!==result.revision)throw err('VERIFY_REVISION','Gravação aceite na revisão '+result.revision+'; a releitura devolveu '+verify?.revision+'. Pode existir outra sessão. Não reenviar.');const path=difference(snapshot,verify.state);if(path)throw err('VERIFY_CONTENT','Revisão '+result.revision+' confirmada, mas conteúdo diferente em '+path+'. Exporta backup e relê. Não são apresentados valores pessoais neste diagnóstico.');return result;}
+document.addEventListener('DOMContentLoaded',()=>{el('pwa-connect').onclick=()=>{if(!client)return;el('pwa-connect').disabled=true;try{client.requestAccessToken({prompt:'select_account'});}catch(e){gate(e.message);}};});
+return {ready,gate,loaded,busy,read,write,difference};
 })();
-</script>
-</head>
+</script></head>
 
-<body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-bar">Teste · Gravação manual <button id="pwa-save" disabled>Guardar teste</button></div><div id="pwa-gate"><section><h1>Gestor de Contas</h1><h2>Gravação controlada</h2><p>Exporta um backup antes do teste. Nenhuma alteração é enviada automaticamente.</p><button id="pwa-connect" disabled>Entrar com Google</button><pre id="pwa-message" role="status">A carregar autorização…</pre></section></div><div id="pwa-busy" hidden role="status">A guardar e a confirmar no servidor. Não feches esta página…</div>
+<body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-bar"><span>C2 · Gravação manual</span><span id="pwa-status" role="status">A iniciar…</span><button type="button" id="pwa-save" disabled>Guardar teste</button><button type="button" id="pwa-draft" hidden>Rascunho anterior</button></div><div id="pwa-gate"><section><h1>Gestor de Contas</h1><h2>Confirmação corrigida · C2</h2><p>Exporta um backup antes do teste. Não há gravação automática.</p><button type="button" id="pwa-connect" disabled>Entrar com Google</button><pre id="pwa-message" role="status">A carregar autorização…</pre></section></div><div id="pwa-busy" hidden role="status">A carregar…</div>
 
 
   <!-- SPLASH SCREEN ANIMADO COM TÍTULO "GESTOR DE CONTAS" -->
@@ -2748,213 +2757,33 @@ playSoundForStatus=async function(status){
 };
 
     
-(() => {
-  const online = Boolean(typeof google !== 'undefined' && google.script && google.script.run);
-  const DRAFT = 'contas_pwa_manual_draft_v1';
-  let ready = false, busy = false, dirty = false, conflict = false, empty = false;
-  let revision = 0, timer, started = false;
-  const el = id => document.getElementById(id);
 
-  function pack() {
-    return JSON.parse(JSON.stringify({
-      schema: 1, sourceVersion: 11, reportYear: Number(selectedYear), appData,
-      credits: { casa: CREDIT_CASA_DATA, carro: CREDIT_CARRO_DATA, credito_ab: CREDIT_AB_DATA }
-    }));
-  }
-
-  function stash() {
-    try { localStorage.setItem(DRAFT, JSON.stringify({ revision, state: pack() })); } catch (e) {}
-  }
-
-  function forget() {
-    try { localStorage.removeItem(DRAFT); } catch (e) {}
-  }
-
-  function apply(data) {
-    if (!data || !Array.isArray(data.appData?.accounts) || !data.appData.ganhos || !data.credits) {
-      throw new Error('Estado incompleto.');
-    }
-    appData = data.appData;
-    [[CREDIT_CASA_DATA, data.credits.casa], [CREDIT_CARRO_DATA, data.credits.carro],
-     [CREDIT_AB_DATA, data.credits.credito_ab]].forEach(([target, items]) => {
-      if (items && Array.isArray(items)) target.splice(0, target.length, ...items);
-    });
-    appData.accounts.forEach(migrateAnnualStates);
-    try { localStorage.setItem('contas_pwa_manual_v1', JSON.stringify(appData)); } catch (e) {}
-    renderApp();
-  }
-
-  function show(mode, percent, text, isBusy = false) {
-    if (!started) return;
-    el('sync-message').textContent = text;
-    el('sync-percent').textContent = percent + '%';
-    const fill = el('sync-fill'), emoji = el('sync-emoji'), track = el('sync-track');
-    if (fill && emoji && track) {
-      fill.style.width = percent + '%';
-      emoji.style.left = percent + '%';
-      track.setAttribute('aria-valuenow', percent);
-      track.classList.toggle('busy', isBusy);
-    }
-    el('sync-status').dataset.state = mode;
-    el('sync-status').title = text;
-    el('sync-status').textContent = ({
-      loading: 'A carregar…', saving: 'A guardar…', pending: 'Por guardar',
-      saved: 'Guardado no Sheets', loaded: 'Dados carregados', error: 'Verificar ligação',
-      empty: 'Inicializar dados', local: 'Modo local'
-    })[mode] || 'Estado da ligação';
-
-    el('sync-save').disabled = !online || !ready || busy || conflict || !dirty;
-    document.getElementById('pwa-save').disabled = el('sync-save').disabled;
-    el('sync-read').disabled = !online || busy;
-    el('sync-import').disabled = busy || conflict || (online && !ready && !empty);
-    el('sync-init').hidden = !online || !empty;
-    el('sync-init').disabled = busy;
-  }
-
-  function changed() {
-    if (!online || !ready) return;
-    dirty = true;
-    stash();
-    if (conflict) {
-      show('error', 25, 'Conflito: faz backup e recarrega.', false);
-      return;
-    }
-    show('pending', 25, 'Alterações pendentes. Usa Guardar teste para confirmar o envio.', false);
-    clearTimeout(timer);
-    /* Gravação manual. */
-  }
-
-  function save() {
-    if (!online || !ready || busy || conflict || !dirty) return;
-    if (!confirm('Guardar no Google Sheets?\n\nConfirma que exportaste um backup. O relatório GESTOR_GERAL será reconstruído: notas e fórmulas manuais dessa aba são apagadas.')) return;
-    const data = pack(), sent = JSON.stringify(data);
-    busy = true; window.PWAManual.saving(true);
-    show('saving', 50, 'A enviar para a aba GESTOR_GERAL…', true);
-    google.script.run.withSuccessHandler(result => {
-      busy = false; window.PWAManual.saving(false);
-      if (result.conflict) {
-        conflict = true;
-        show('error', 50, 'Outra sessão guardou primeiro.', false);
-        return;
-      }
-      revision = result.revision;
-      empty = false;
-      dirty = JSON.stringify(pack()) !== sent;
-      if (dirty) {
-        stash();
-        show('pending', 25, 'Há novas alterações; a reenviar…', true);
-        /* Nova confirmação necessária. */
-      } else {
-        forget();
-        show('saved', 100, 'Guardado no Sheets às ' + new Date(result.updatedAt).toLocaleTimeString('pt-PT') + '.', false);
-      }
-    }).withFailureHandler(error => {
-      busy = false; window.PWAManual.saving(false);
-      conflict = true;
-      dirty = true;
-      stash();
-      show('error', 50, 'Resultado não confirmado. Exporta backup e relê o servidor antes de repetir: ' + (error.message || String(error)), false);
-    }).saveAppState(data, revision);
-  }
-
-  function load(manual = false) {
-    if (!online || busy) return;
-    if (manual && dirty && !confirm('Descartar alterações pendentes e carregar do Sheets?')) return;
-    clearTimeout(timer);
-    busy = true;
-    show('loading', 50, 'A ler dados do Sheets…', true);
-    google.script.run.withSuccessHandler(result => {
-      busy = false;
-      revision = result.revision;
-      empty = !result.state;
-      try {
-        if (empty) {
-          window.PWAManual.fail('Servidor sem dados. Inicialização bloqueada.');
-          ready = false; dirty = false; conflict = false;
-          show('empty', 0, 'Aba vazia. Revê os dados antes de inicializar.', false);
-          return;
-        }
-        apply(result.state);
-        window.PWAManual.loaded();
-        ready = true; dirty = false; conflict = false;
-        forget();
-        show('loaded', 100, 'Dados carregados de ' + result.sheetName + '.', false);
-      } catch (e) {
-        ready = false;
-        show('error', 0, 'Erro ao interpretar dados: ' + e.message, false);
-window.PWAManual.fail(e.message);
-      }
-    }).withFailureHandler(error => {
-      busy = false;
-      show('error', 0, 'Falha ao carregar: ' + (error.message || String(error)), false);
-ready = false; window.PWAManual.fail(error.message || String(error));
-    }).getAppState();
-  }
-
-  function backup() {
-    const data = { ...pack(), revision, exportedAt: new Date().toISOString() };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = 'contas-v9-backup-' + Date.now() + '.json'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-  }
-
-  async function importBackup(event) { event.target.value=""; alert("Importação desativada durante o teste."); return;
-
-    try {
-      const file = event.target.files[0];
-      if (!file) return;
-      const data = JSON.parse(await file.text());
-      if (!confirm('Substituir os dados visíveis pelo backup?')) return;
-      apply(data);
-      if (ready) {
-        dirty = true; stash();
-        show('pending', 25, 'Backup importado. A guardar no Sheets…', true);
-        save();
-      } else {
-        show(empty ? 'empty' : 'local', 25, 'Backup importado.', false);
-      }
-    } catch (e) { alert(e.message); }
-    finally { event.target.value = ''; }
-  }
-
-  const originalSave = saveDataToLocalStorage;
-  saveDataToLocalStorage = function () {
-    try { originalSave(); } catch (e) {}
-    changed();
-  };
-
-  const originalCredit = markCreditMonthPaid;
-  markCreditMonthPaid = function (tab, date) {
-    originalCredit(tab, date);
-    saveDataToLocalStorage();
-  };
-
-  window.addEventListener('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
-  document.addEventListener('DOMContentLoaded', () => {
-    started = true;
-    const open = el('settings-open'), badge = document.createElement('button');
-    badge.id = 'sync-status'; badge.type = 'button';
-    badge.setAttribute('aria-label', 'Abrir estado da ligação ao Sheets');
-    open.insertAdjacentElement('afterend', badge);
-    badge.onclick = () => {
-      open.click();
-      requestAnimationFrame(() => {
-        el('sync-settings').scrollIntoView({ block: 'nearest' });
-        el('sync-message').focus();
-      });
-    };
-    el('sync-save').onclick = save;
-    document.getElementById('pwa-save').onclick = save;
-    el('sync-read').onclick = () => load(true);
-    el('sync-backup').onclick = backup;
-    el('sync-import').onclick = () => el('sync-file').click();
-    el('sync-file').onchange = importBackup;
-    el('sync-init').onclick = () => alert('Inicialização bloqueada na PWA.');
-    if (online) { if (localStorage.getItem(DRAFT)) { alert('Existe um rascunho anterior. Será descarregado para recuperação manual.'); const u=URL.createObjectURL(new Blob([localStorage.getItem(DRAFT)],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='rascunho-pwa-'+Date.now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),3000); } load(); }
-    else show('local', 0, 'Modo local: abre o link /exec do Apps Script.', false);
-  });
+(()=>{
+const DRAFT='contas_pwa_manual_draft_v1';
+let ready=false,busy=false,dirty=false,blocked=false,revision=0,started=false,archived=null;
+const el=id=>document.getElementById(id);
+const pack=()=>JSON.parse(JSON.stringify({schema:1,sourceVersion:11,reportYear:Number(selectedYear),appData,credits:{casa:CREDIT_CASA_DATA,carro:CREDIT_CARRO_DATA,credito_ab:CREDIT_AB_DATA}}));
+function download(value,name){const u=URL.createObjectURL(new Blob([value],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),3000);}
+function stash(){try{localStorage.setItem(DRAFT,JSON.stringify({revision,state:pack(),savedLocallyAt:new Date().toISOString()}));return true;}catch(e){return false;}}
+function forget(){try{localStorage.removeItem(DRAFT);}catch(e){}}
+function apply(data){if(!data||!Array.isArray(data.appData?.accounts)||!data.appData.ganhos||!['casa','carro','credito_ab'].every(k=>Array.isArray(data.credits?.[k])))throw Error('Estado incompleto. Nenhum dado vazio foi inicializado.');appData=data.appData;[[CREDIT_CASA_DATA,data.credits.casa],[CREDIT_CARRO_DATA,data.credits.carro],[CREDIT_AB_DATA,data.credits.credito_ab]].forEach(([to,from])=>to.splice(0,to.length,...from));appData.accounts.forEach(migrateAnnualStates);renderApp();}
+function show(mode,pct,text){if(!started)return;el('sync-message').textContent=text;el('sync-percent').textContent=pct+'%';el('pwa-status').textContent=({loaded:'Dados carregados',pending:'Por guardar',saving:'A guardar e confirmar…',saved:'Guardado e confirmado',conflict:'Conflito de revisão',uncertain:'Resultado por confirmar',divergent:'Verificar conteúdo',auth:'Entrar novamente',error:'Falha ao carregar',loading:'A carregar…'})[mode]||mode;el('sync-status').textContent=el('pwa-status').textContent;el('sync-status').title=text;el('sync-status').dataset.state=['conflict','uncertain','divergent','auth','error'].includes(mode)?'error':mode;el('sync-fill').style.width=pct+'%';el('sync-emoji').style.left=pct+'%';el('sync-track').setAttribute('aria-valuenow',pct);el('sync-track').classList.toggle('busy',busy);el('sync-save').disabled=el('pwa-save').disabled=!ready||busy||blocked||!dirty;el('sync-read').disabled=busy;el('sync-backup').disabled=busy||!ready;el('sync-init').hidden=true;el('sync-import').disabled=true;}
+function changed(){if(!ready)return;dirty=true;const stored=stash();show(blocked?'uncertain':'pending',25,blocked?'Envio bloqueado. Exporta backup e carrega do Sheets antes de voltar a editar.':stored?'Alterações pendentes. Carrega em Guardar teste para enviar.':'Alterações apenas em memória: falhou o rascunho local. Exporta backup antes de sair.');}
+async function save(){if(!ready||busy||blocked||!dirty)return;if(!confirm('Guardar no Google Sheets?\n\nConfirma que exportaste um backup. O relatório GESTOR_GERAL será reconstruído, apagando notas e fórmulas manuais nessa aba.'))return;const snapshot=pack();busy=true;PWASync.busy(true,'A guardar e a confirmar no servidor. Não feches esta página…');show('saving',50,'A enviar e a reler o estado no servidor…');try{const result=await PWASync.write(snapshot,revision);revision=result.revision;dirty=!!PWASync.difference(pack(),snapshot);busy=false;if(dirty){stash();show('pending',25,'Gravação confirmada na revisão '+revision+'. Existem novas alterações locais, ainda não enviadas.');}else{forget();show('saved',100,'Guardado e confirmado no Sheets. Revisão '+revision+' — '+new Date(result.updatedAt).toLocaleTimeString('pt-PT')+'.');}}catch(e){busy=false;dirty=true;const notSent=['AUTH_NOT_SENT','NOT_SENT'].includes(e.code);blocked=!notSent;stash();const mode=e.code==='CONFLICT'?'conflict':e.code==='AUTH_NOT_SENT'?'auth':e.code==='VERIFY_CONTENT'?'divergent':'uncertain';show(mode,e.code?.startsWith('VERIFY')?75:25,'['+(e.code||'UNKNOWN')+'] '+e.message);}finally{busy=false;PWASync.busy(false);}}
+function backup(){if(ready)download(JSON.stringify({...pack(),revision,exportedAt:new Date().toISOString()},null,2),'contas-pwa-backup-'+Date.now()+'.json');}
+async function load(manual=false){if(busy)return;if(manual&&dirty){if(!confirm('A releitura substitui as alterações locais. Será descarregado um backup antes de continuar. Prosseguir?'))return;backup();}busy=true;PWASync.busy(true,'A carregar os dados do Sheets…');show('loading',0,'A carregar os dados do servidor…');try{const result=await PWASync.read();if(!result?.state||!Number.isInteger(result.revision)||result.revision<1)throw Error('Servidor sem estado válido. Inicialização bloqueada.');apply(result.state);revision=result.revision;ready=true;dirty=false;blocked=false;busy=false;forget();PWASync.loaded();show('loaded',100,'Dados carregados. Revisão '+revision+'. Gravação apenas manual.');}catch(e){busy=false;blocked=true;show('error',0,'Falha de leitura: '+e.message);PWASync.gate('Falha ao carregar: '+e.message+' Se já autorizaste, atualiza a página para tentar novamente.');}finally{busy=false;PWASync.busy(false);}}
+const originalSave=saveDataToLocalStorage;saveDataToLocalStorage=function(){if(!ready)return;try{originalSave();}catch(e){}changed();};
+const originalCredit=markCreditMonthPaid;markCreditMonthPaid=function(tab,date){if(!ready||busy||blocked)return;originalCredit(tab,date);saveDataToLocalStorage();};
+window.addEventListener('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
+window.addEventListener('pwa-retry-load',()=>{if(!busy&&!ready)load();});
+document.addEventListener('DOMContentLoaded',()=>{
+started=true;const open=el('settings-open'),badge=document.createElement('button');badge.id='sync-status';badge.type='button';badge.setAttribute('aria-label','Abrir estado da sincronização');open.insertAdjacentElement('afterend',badge);badge.onclick=()=>{open.click();requestAnimationFrame(()=>el('sync-settings').scrollIntoView({block:'nearest'}));};
+el('pwa-save').onclick=el('sync-save').onclick=save;el('sync-read').onclick=()=>load(true);el('sync-backup').onclick=backup;el('sync-import').onclick=()=>alert('Importação bloqueada neste teste.');el('sync-init').onclick=()=>alert('Inicialização bloqueada.');
+try{const old=localStorage.getItem(DRAFT);if(old){archived=old;localStorage.setItem('contas_pwa_arquivo_'+Date.now(),old);el('pwa-draft').hidden=false;alert('Existe um rascunho anterior. Foi arquivado neste navegador; usa Rascunho anterior para o exportar. Não será aplicado automaticamente.');}}catch(e){if(archived){el('pwa-draft').hidden=false;el('pwa-draft').onclick=()=>download(archived,'rascunho-anterior-'+Date.now()+'.json');PWASync.gate('Não foi possível arquivar o rascunho. Usa Rascunho anterior para exportar antes de atualizar a página.');return;}}
+el('pwa-draft').onclick=()=>{if(archived)download(archived,'rascunho-anterior-'+Date.now()+'.json');};load();
+});
 })();
+
 
   </script>
   <div id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
@@ -2972,8 +2801,7 @@ ready = false; window.PWAManual.fail(error.message || String(error));
       </div>
       <section id="sync-settings" aria-labelledby="sync-title">
         <h3 id="sync-title">Dados e ligação ao Sheets</h3>
-        <p>Gravação automática na aba única organizada <strong>GESTOR_GERAL</strong>. Não altera as tuas cores nem
-          fórmulas.</p>
+        <p>Gravação manual, com controlo de revisão e confirmação por releitura. O relatório <strong>GESTOR_GERAL</strong> é reconstruído ao guardar: notas e fórmulas manuais nessa aba são apagadas. As preferências visuais desta interface ficam neste navegador.</p>
         <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:12px;">
           <span id="sync-message" role="status" aria-live="polite" tabindex="-1">A iniciar ligação…</span>
           <span id="sync-percent">0%</span>
@@ -2983,10 +2811,9 @@ ready = false; window.PWAManual.fail(error.message || String(error));
           <div id="sync-fill"></div>
           <span id="sync-emoji" aria-hidden="true">💾</span>
         </div>
-        <p style="font-size:11px; opacity:0.8;">O emoji 💾 desloca-se conforme a etapa: 25% (preparado), 50% (enviado),
-          100% (confirmado pelo Sheets).</p>
+        <p style="font-size:11px; opacity:0.8;">Etapas: 25% (alterações pendentes), 50% (envio/verificação em curso), 75% (gravação aceite, confirmação incompleta), 100% (carregamento ou gravação confirmados; consulta a mensagem).</p>
         <div id="sync-actions">
-          <button id="sync-save" type="button">Tentar guardar</button>
+          <button id="sync-save" type="button">Guardar teste</button>
           <button id="sync-read" type="button">Carregar do Sheets</button>
           <button id="sync-backup" type="button">Backup JSON</button>
           <button id="sync-import" type="button">Importar backup</button>
@@ -3580,6 +3407,6 @@ showCalendarDayDetails=function(day){detail14(day);const list=calAccounts11(day)
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',paid14);else paid14();
 })();
   </script>
-<script src="https://accounts.google.com/gsi/client" async defer onload="PWAManual.ready()" onerror="PWAManual.fail('Falha ao carregar autorização Google. Atualiza a página.')"></script></body>
+<script src="https://accounts.google.com/gsi/client" async defer onload="PWASync.ready()" onerror="PWASync.gate('Falha ao carregar autorização Google. Atualiza a página.')"></script></body>
 
 </html>
