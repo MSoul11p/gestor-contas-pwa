@@ -1083,6 +1083,7 @@ function entryMessage(message){
   if(status)status.textContent=message;
 }
 function gate(message){
+  el('pwa-busy').hidden=true;
   el('pwa-gate').hidden=Boolean(el('splash-screen'));
   entryMessage(message);
   entryButtons(!client);
@@ -1095,7 +1096,7 @@ function connect(){
   catch(error){gate(error.message);}
 }
 function loaded(){hasData=true;el('pwa-gate').hidden=true;if(el('splash-screen'))closeSplash();}
-function busy(v,text){el('pwa-busy').hidden=!v;if(text)el('pwa-busy').textContent=text;}
+function busy(v,text){el('pwa-busy').hidden=!(v&&validToken());if(text)el('pwa-busy').textContent=text;}
 function ready(){
   client=google.accounts.oauth2.initTokenClient({
     client_id:ID,
@@ -1129,7 +1130,7 @@ function ready(){
 function validToken(){return !!token&&Date.now()<expires;}
 async function authorizeRead(){loadRequested=true;if(validToken())return;gate('Liga a tua conta Google para carregar os teus dados.');await new Promise((resolve,reject)=>waiters.push({resolve,reject}));}
 async function request(name,args){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);try{let response;try{response=await fetch(API,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({function:name,parameters:args,devMode:false}),cache:'no-store',signal:controller.signal});}catch(e){throw err('NETWORK',e.name==='AbortError'?'Tempo de espera excedido.':'Falha de rede ao obter a resposta.');}let data;try{data=await response.json();}catch(e){throw err('RESPONSE','A API não devolveu JSON válido.');}if(!response.ok||data.error){if(response.status===401){token='';expires=0;}const detail=data.error||{};throw err(response.status===401?'AUTH':'API',(detail.message||'HTTP '+response.status)+' '+(detail.details||[]).map(d=>d.errorMessage||'').join(' '));}if(!data.done||!data.response)throw err('RESPONSE','Resposta incompleta da API.');return data.response.result;}finally{clearTimeout(timer);}}
-async function read(){await authorizeRead();return request('getAppState',[]);}
+async function read(){await authorizeRead();busy(true,'A carregar os dados do Sheets…');return request('getAppState',[]);}
 async function write(snapshot,revision){if(!hasData)throw err('NOT_SENT','Dados ainda não carregados. Nada enviado.');if(!validToken()){gate('Sessão expirada. Entra novamente para retomar a gravação automática das alterações pendentes.');throw err('AUTH_NOT_SENT','Sessão expirada. Nada enviado nesta tentativa.');}if(!Number.isInteger(revision)||revision<1)throw err('NOT_SENT','Revisão inválida. Nada enviado.');let result;try{result=await request('saveAppState',[snapshot,revision]);}catch(e){if(e.code==='AUTH'){gate('Autorização expirada. Entra novamente para retomar a gravação automática.');e.code='AUTH_NOT_SENT';}else e.code='WRITE_UNCERTAIN';throw e;}if(result?.conflict)throw err('CONFLICT','O servidor está na revisão '+result.revision+'; esta sessão tinha a revisão '+revision+'. Não foi gravado por esta tentativa. Exporta backup e relê.');if(!Number.isInteger(result?.revision)||result.revision!==revision+1)throw err('WRITE_UNCERTAIN','Resposta de gravação inesperada. Não repetir sem reler.');let verify;try{verify=await request('getAppState',[]);}catch(e){throw err('VERIFY_READ','O servidor aceitou a revisão '+result.revision+', mas a releitura falhou: '+e.message);}if(verify?.revision!==result.revision)throw err('VERIFY_REVISION','Gravação aceite na revisão '+result.revision+'; a releitura devolveu '+verify?.revision+'. Pode existir outra sessão. Não reenviar.');const path=difference(snapshot,verify.state);if(path)throw err('VERIFY_CONTENT','Revisão '+result.revision+' confirmada, mas conteúdo diferente em '+path+'. Exporta backup e relê. O diagnóstico não inclui valores.');return result;}
 document.addEventListener('DOMContentLoaded',()=>{
   el('pwa-connect').onclick=connect;
