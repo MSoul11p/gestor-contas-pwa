@@ -1072,21 +1072,89 @@ function difference(a,b,path='$'){
  for(const k of [...new Set([...Object.keys(a),...Object.keys(b)])].sort()){if(!Object.prototype.hasOwnProperty.call(a,k)||!Object.prototype.hasOwnProperty.call(b,k))return path+'['+JSON.stringify(k)+']';const d=difference(a[k],b[k],path+'['+JSON.stringify(k)+']');if(d)return d;}
  return null;
 }
-function gate(message){el('pwa-gate').hidden=false;el('pwa-message').textContent=message;el('pwa-connect').disabled=!client;}
-function loaded(){hasData=true;el('pwa-gate').hidden=true;}
+function entryButtons(disabled){
+  el('pwa-connect').disabled=disabled;
+  const button=el('pwa-splash-connect');
+  if(button)button.disabled=disabled;
+}
+function entryMessage(message){
+  el('pwa-message').textContent=message;
+  const status=el('pwa-entry-message');
+  if(status)status.textContent=message;
+}
+function gate(message){
+  el('pwa-gate').hidden=Boolean(el('splash-screen'));
+  entryMessage(message);
+  entryButtons(!client);
+}
+function connect(){
+  if(!client)return;
+  entryButtons(true);
+  entryMessage('A abrir a escolha de conta Google…');
+  try{client.requestAccessToken({prompt:'select_account'});}
+  catch(error){gate(error.message);}
+}
+function loaded(){hasData=true;el('pwa-gate').hidden=true;if(el('splash-screen'))closeSplash();}
 function busy(v,text){el('pwa-busy').hidden=!v;if(text)el('pwa-busy').textContent=text;}
-function ready(){client=google.accounts.oauth2.initTokenClient({client_id:ID,scope:scopes.join(' '),callback:r=>{el('pwa-connect').disabled=false;if(r.error||!google.accounts.oauth2.hasGrantedAllScopes(r,...scopes)){const e=err('AUTH','Autorização incompleta ou recusada.');waiters.splice(0).forEach(w=>w.reject(e));gate(e.message);return;}token=r.access_token;expires=Date.now()+(Number(r.expires_in||3600)-60)*1000;el('pwa-gate').hidden=true;waiters.splice(0).forEach(w=>w.resolve());window.dispatchEvent(new Event('pwa-authorized'));if(loadRequested&&!hasData)window.dispatchEvent(new Event('pwa-retry-load'));},error_callback:r=>{const e=err('AUTH','Entrada interrompida: '+r.type);waiters.splice(0).forEach(w=>w.reject(e));gate(e.message);}});el('pwa-connect').disabled=false;el('pwa-message').textContent='Liga a tua conta Google para carregar os teus dados.';}
+function ready(){
+  client=google.accounts.oauth2.initTokenClient({
+    client_id:ID,
+    scope:scopes.join(' '),
+    callback:response=>{
+      entryButtons(false);
+      const authorized=!response.error&&google.accounts.oauth2.hasGrantedAllScopes(response,...scopes);
+      if(!authorized){
+        const error=err('AUTH','Autorização incompleta ou recusada.');
+        waiters.splice(0).forEach(waiter=>waiter.reject(error));
+        gate(error.message);
+        return;
+      }
+      token=response.access_token;
+      expires=Date.now()+(Number(response.expires_in||3600)-60)*1000;
+      el('pwa-gate').hidden=true;
+      entryMessage('A carregar os teus dados…');
+      waiters.splice(0).forEach(waiter=>waiter.resolve());
+      window.dispatchEvent(new Event('pwa-authorized'));
+      if(loadRequested&&!hasData)window.dispatchEvent(new Event('pwa-retry-load'));
+    },
+    error_callback:response=>{
+      const error=err('AUTH','Entrada interrompida: '+response.type);
+      waiters.splice(0).forEach(waiter=>waiter.reject(error));
+      gate(error.message);
+    }
+  });
+  entryButtons(false);
+  entryMessage('Entra com a tua conta Google para carregar os teus dados.');
+}
 function validToken(){return !!token&&Date.now()<expires;}
 async function authorizeRead(){loadRequested=true;if(validToken())return;gate('Liga a tua conta Google para carregar os teus dados.');await new Promise((resolve,reject)=>waiters.push({resolve,reject}));}
 async function request(name,args){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000);try{let response;try{response=await fetch(API,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({function:name,parameters:args,devMode:false}),cache:'no-store',signal:controller.signal});}catch(e){throw err('NETWORK',e.name==='AbortError'?'Tempo de espera excedido.':'Falha de rede ao obter a resposta.');}let data;try{data=await response.json();}catch(e){throw err('RESPONSE','A API não devolveu JSON válido.');}if(!response.ok||data.error){if(response.status===401){token='';expires=0;}const detail=data.error||{};throw err(response.status===401?'AUTH':'API',(detail.message||'HTTP '+response.status)+' '+(detail.details||[]).map(d=>d.errorMessage||'').join(' '));}if(!data.done||!data.response)throw err('RESPONSE','Resposta incompleta da API.');return data.response.result;}finally{clearTimeout(timer);}}
 async function read(){await authorizeRead();return request('getAppState',[]);}
 async function write(snapshot,revision){if(!hasData)throw err('NOT_SENT','Dados ainda não carregados. Nada enviado.');if(!validToken()){gate('Sessão expirada. Entra novamente para retomar a gravação automática das alterações pendentes.');throw err('AUTH_NOT_SENT','Sessão expirada. Nada enviado nesta tentativa.');}if(!Number.isInteger(revision)||revision<1)throw err('NOT_SENT','Revisão inválida. Nada enviado.');let result;try{result=await request('saveAppState',[snapshot,revision]);}catch(e){if(e.code==='AUTH'){gate('Autorização expirada. Entra novamente para retomar a gravação automática.');e.code='AUTH_NOT_SENT';}else e.code='WRITE_UNCERTAIN';throw e;}if(result?.conflict)throw err('CONFLICT','O servidor está na revisão '+result.revision+'; esta sessão tinha a revisão '+revision+'. Não foi gravado por esta tentativa. Exporta backup e relê.');if(!Number.isInteger(result?.revision)||result.revision!==revision+1)throw err('WRITE_UNCERTAIN','Resposta de gravação inesperada. Não repetir sem reler.');let verify;try{verify=await request('getAppState',[]);}catch(e){throw err('VERIFY_READ','O servidor aceitou a revisão '+result.revision+', mas a releitura falhou: '+e.message);}if(verify?.revision!==result.revision)throw err('VERIFY_REVISION','Gravação aceite na revisão '+result.revision+'; a releitura devolveu '+verify?.revision+'. Pode existir outra sessão. Não reenviar.');const path=difference(snapshot,verify.state);if(path)throw err('VERIFY_CONTENT','Revisão '+result.revision+' confirmada, mas conteúdo diferente em '+path+'. Exporta backup e relê. O diagnóstico não inclui valores.');return result;}
-document.addEventListener('DOMContentLoaded',()=>{el('pwa-connect').onclick=()=>{if(!client)return;el('pwa-connect').disabled=true;try{client.requestAccessToken({prompt:'select_account'});}catch(e){gate(e.message);}};});
+document.addEventListener('DOMContentLoaded',()=>{
+  el('pwa-connect').onclick=connect;
+  const splash=el('splash-screen');
+  const button=splash?.querySelector('button[onclick="closeSplash()"]');
+  if(!button)return;
+  button.removeAttribute('onclick');
+  button.id='pwa-splash-connect';
+  button.textContent='Entrar no Gestor de Contas';
+  button.onclick=connect;
+  const status=document.createElement('p');
+  status.id='pwa-entry-message';
+  status.setAttribute('role','status');
+  status.setAttribute('aria-live','polite');
+  status.style.cssText='color:#e2e8f0;font-size:14px;line-height:1.5;margin-top:18px;white-space:pre-wrap';
+  button.insertAdjacentElement('afterend',status);
+  el('pwa-gate').hidden=true;
+  entryButtons(!client);
+  entryMessage(client?'Entra com a tua conta Google para carregar os teus dados.':el('pwa-message').textContent);
+});
 return {ready,gate,loaded,busy,read,write,difference};
 })();
 </script></head>
 
-<body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-gate"><section><h1>Gestor de Contas</h1><p id="pwa-message" role="status">A preparar a ligação segura…</p><button type="button" id="pwa-connect" disabled>Entrar com Google</button></section></div><div id="pwa-busy" hidden role="status">A carregar…</div>
+<body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36"><div id="pwa-gate" hidden><section><h1>Gestor de Contas</h1><p id="pwa-message" role="status">A preparar a ligação segura…</p><button type="button" id="pwa-connect" disabled>Entrar com Google</button></section></div><div id="pwa-busy" hidden role="status">A carregar…</div>
 
 
   <!-- SPLASH SCREEN ANIMADO COM TÍTULO "GESTOR DE CONTAS" -->
