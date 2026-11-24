@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Gestor de Contas — revisão 27. Formulários, período e exclusões reversíveis. -->
+<!-- Gestor de Contas — base R27 preservada; integração R31. Base: Formulários, período e exclusões reversíveis. -->
 <html class="dark" lang="pt-PT">
  <head>
   <meta charset="utf-8"/>
@@ -1160,7 +1160,45 @@ html.dark :is(#month-error10, #month-error-v10) {
     };
 })();
   </script>
- </head>
+ <style id="revision31-layout">
+
+/* R31 — apresentação nova, sem apagar o DOM exigido pelo calendário e formulários anteriores. */
+:root{--r31-bg:#eff5fc;--r31-card:#fff;--r31-ink:#21364c;--r31-muted:#62758c;--r31-field:#f3f6fb;--r31-line:#e2eaf4;--r31-accent:#3266dd;--r31-soft:#eaf0ff}
+html.dark{--r31-bg:#111f2f;--r31-card:#192c40;--r31-ink:#edf4ff;--r31-muted:#b2c2d5;--r31-field:#23394f;--r31-line:#3c5066;--r31-soft:#294363}
+body[data-r31]{background:var(--r31-bg)!important;color:var(--r31-ink)!important}
+body[data-r31]>main>*:not(#r31-root){display:none!important}
+body[data-r31]>header{position:relative!important;background:var(--r31-card)!important;color:var(--r31-ink)!important}
+body[data-r31]>header>div{max-width:1120px!important;flex-wrap:wrap;gap:8px!important;padding:13px 18px!important}
+body[data-r31] #glass-dock{max-width:calc(100% - 20px)!important}
+body[data-r31] #glass-dock nav{border-radius:99px!important}
+body[data-r31] .view-logo{object-fit:contain!important;object-position:center!important;transform:none!important;aspect-ratio:1;flex-shrink:0}
+body[data-r31] #glass-dock .view-logo{width:25px!important;height:25px!important;padding:2px!important;border-radius:7px}
+body[data-r31] #header-icon-badge{overflow:hidden;aspect-ratio:1}
+#r31-root{max-width:1050px;margin:0 auto;padding-bottom:110px;color:var(--r31-ink);font-size:14px}
+#r31-root *,#r31-dialog *{box-sizing:border-box}
+#r31-root h2{font-size:18px;font-weight:750;letter-spacing:-.3px}#r31-root h3{font-size:14px;font-weight:650}
+.r31-row{display:flex;align-items:center;gap:9px}.r31-between{justify-content:space-between}.r31-wrap{flex-wrap:wrap}.r31-grow{flex:1;min-width:0}.r31-stack{display:grid;gap:16px}.r31-muted{font-size:11px;color:var(--r31-muted)!important;line-height:1.5}.r31-positive{color:#178166!important}.r31-negative{color:#bd3c60!important}
+.r31-card{background:var(--r31-card);border:1px solid var(--r31-line);border-radius:23px;padding:20px;box-shadow:0 6px 24px #142f4806}
+.r31-balance{background:linear-gradient(125deg,var(--r31-card) 55%,var(--r31-soft))}.r31-big{font-size:34px!important;letter-spacing:-1.5px;font-weight:750!important;margin:6px 0;line-height:1.3;font-variant-numeric:tabular-nums}
+.r31-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.r31-stat{padding:15px 11px}.r31-stat strong{display:block;font-size:18px;margin-top:7px;font-variant-numeric:tabular-nums}
+.r31-btn{border:0;min-height:42px;padding:10px 15px;border-radius:99px;background:var(--r31-accent);color:#fff!important;font-size:12px;font-weight:650;cursor:pointer;white-space:normal}.r31-btn.secondary{background:var(--r31-field);color:var(--r31-ink)!important;border:1px solid var(--r31-line)}.r31-link{background:none;border:0;color:var(--r31-accent)!important;font-size:12px;padding:7px 0;cursor:pointer}
+.r31-period{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px}.r31-period>div{display:flex;align-items:center;background:var(--r31-card);padding:4px;border-radius:99px}.r31-period button{background:var(--r31-card);color:var(--r31-ink);border:0;border-radius:99px;padding:8px 12px;min-height:36px;font-size:12px;cursor:pointer}
+.r31-list{padding:17px 0 6px;overflow:hidden}.r31-listhead{display:grid;gap:13px;padding:0 17px 13px}.r31-segments{display:flex;background:var(--r31-field);border-radius:99px;padding:4px;max-width:100%}.r31-segments button{background:none;color:var(--r31-ink);border:0;border-radius:99px;padding:8px 13px;font-size:12px;cursor:pointer}.r31-segments button[aria-pressed=true]{background:var(--r31-accent);color:#fff}
+#r31-root input.r31-search{width:100%;border:1px solid var(--r31-line)!important;border-radius:99px;padding:11px 14px;background:var(--r31-field)!important;color:var(--r31-ink)!important;font-size:12px}
+.r31-filters{display:flex;gap:6px;flex-wrap:wrap}.r31-filter{border:1px solid var(--r31-line);background:var(--r31-card);color:var(--r31-ink);border-radius:99px;padding:8px 11px;font-size:11px;cursor:pointer}.r31-filter[aria-pressed=true]{background:var(--r31-soft);color:var(--r31-accent);border-color:transparent}
+.r31-group{padding:9px 18px;margin-top:5px;background:var(--group-color,#dfebf5);color:#27465e!important;font-weight:700;font-size:12px}.dark .r31-group{background:color-mix(in srgb,var(--group-color) 24%,#14283c);color:var(--group-color)!important}
+.r31-item{display:flex;align-items:center;gap:6px;padding:13px 10px 13px 17px;min-height:70px;border-bottom:1px solid var(--r31-line)}.r31-name{font-size:13px;font-weight:580;overflow-wrap:anywhere}.r31-pill{min-width:151px;min-height:43px;padding:10px 11px;border:1px solid var(--r31-line);border-radius:99px;background:var(--r31-field);color:var(--r31-ink)!important;font-size:11px;font-weight:650;white-space:nowrap;cursor:pointer;font-variant-numeric:tabular-nums}.r31-pill.PAID{background:var(--r31-accent);color:#fff!important;border-color:transparent}.r31-pill.SEPARATED{background:#fff0bc;color:#75580e!important;border-color:#ead99d}.r31-pill.shared{box-shadow:-2px 0 #5c92ed,2px 0 #e680ae}.r31-more{width:27px;min-height:40px;border:0;background:none;color:var(--r31-muted);font-size:22px;cursor:pointer}.r31-empty{padding:27px 20px;text-align:center;color:var(--r31-muted);font-size:13px}.r31-hint{padding:13px;text-align:center;color:var(--r31-muted);font-size:11px}.r31-void{opacity:.6}
+.r31-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.r31-grid strong{display:block;font-size:20px;margin-top:6px}.r31-date{background:var(--r31-field);border-radius:16px;padding:14px}.r31-date strong{font-size:15px}.r31-progress{height:12px;overflow:hidden;border-radius:99px;background:var(--r31-field);margin:18px 0 8px}.r31-progress>div{height:100%;border-radius:99px;background:linear-gradient(90deg,#3ab8cf,var(--r31-accent))}.r31-details{margin-top:15px;padding-top:13px;border-top:1px solid var(--r31-line)}.r31-details summary{font-size:12px;cursor:pointer;color:var(--r31-muted)}.r31-details p{font-size:12px;color:var(--r31-muted);margin-top:10px;line-height:1.6}.r31-months{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.r31-months button{padding:15px 9px;background:var(--r31-field);color:var(--r31-ink);border:1px solid var(--r31-line);border-radius:16px;text-align:left;min-height:86px;cursor:pointer}.r31-months span{display:block;font-size:11px;margin-top:7px}
+#r31-dialog{width:min(510px,calc(100% - 24px));max-height:calc(100dvh - 28px);border:1px solid var(--r31-line);border-radius:25px;background:var(--r31-card);color:var(--r31-ink);padding:20px;box-shadow:0 25px 80px #19334c33}#r31-dialog::backdrop{background:#16304e66;backdrop-filter:blur(4px)}#r31-dialog h2{font-size:18px;font-weight:750}#r31-dialog .r31-close{width:39px;height:39px;border-radius:50%;background:var(--r31-field);color:var(--r31-ink);border:0;font-size:23px;cursor:pointer}
+.r31-field{display:grid;gap:7px;margin-top:15px}.r31-field label{font-size:12px;font-weight:650}#r31-dialog input,#r31-dialog select,#r31-dialog textarea{width:100%;min-width:0;padding:11px 12px;min-height:44px;border:1px solid var(--r31-line)!important;border-radius:13px;background:var(--r31-field)!important;color:var(--r31-ink)!important;font-size:14px}#r31-dialog input[type=checkbox]{width:18px;min-height:18px;accent-color:var(--r31-accent)}.r31-error{padding:11px;background:#fff0f2;color:#a2354e!important;border-radius:12px;font-size:12px;margin-top:12px}.r31-foot{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:20px}.r31-note{padding:12px;border-radius:14px;background:var(--r31-field);font-size:12px;line-height:1.6}
+body[data-r31] #r30-dialog{background:var(--r31-card);color:var(--r31-ink)}body[data-r31] #r30-dialog .r30-warning{font-size:12px;line-height:1.6}
+.r31-btn:focus-visible,.r31-pill:focus-visible,.r31-more:focus-visible{outline:3px solid #90afff;outline-offset:3px}
+@media(min-width:800px){.r31-dashboard{display:grid;grid-template-columns:305px 1fr;gap:20px;align-items:start}.r31-stats{grid-template-columns:1fr}.r31-stat{display:flex;justify-content:space-between;align-items:center}.r31-stat strong{margin:0}.r31-creditgrid{display:grid;grid-template-columns:1fr 1fr;gap:17px}.r31-wide{grid-column:1/-1}}
+@media(max-width:430px){.r31-card{padding:18px}.r31-list{padding:16px 0 5px}.r31-stat{padding:14px 9px}.r31-stat strong{font-size:16px}.r31-pill{min-width:139px;padding-inline:8px}.r31-item{padding-left:15px}.r31-btn{padding:10px 12px}.r31-grid strong{font-size:17px}.r31-date strong{font-size:14px}#r31-dialog{padding:18px}.r31-period button{padding-inline:10px}}
+@media(prefers-reduced-motion:no-preference){html:not([data-motion30=off]) .r31-btn,html:not([data-motion30=off]) .r31-pill{transition:transform .17s}html:not([data-motion30=off]) .r31-btn:active,html:not([data-motion30=off]) .r31-pill:active{transform:scale(.97)}}
+
+</style>
+</head>
  <body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36">
   <div hidden="" id="pwa-gate">
    <section>
@@ -7048,7 +7086,7 @@ var ContasCore30 = (function () {
                 const override=a.monthlyValues?.[period];
                 const shares=override?.shares;
                 assert(!override || override.day === undefined || override.day === a.day, 'Dia da despesa ligada incoerente.');
-                assert(a.scope === 'general', 'Âmbito da despesa ligada incoerente.');
+                assert(a.scope === 'general' || (e.owner === 'SEMPERFIF' && a.scope === 'semperfif'), 'Âmbito da despesa ligada incoerente.');
                 assert(!a.excludedYears27?.[e.date.slice(0,4)] && !a.excludedMonths27?.[period], 'Anula pagamentos extra na aba do crédito, não por exclusão da despesa.');
                 assert(Object.keys(parts).every(w => a.personStates?.[period]?.[w] === 'PAID'), 'Os pagamentos extra representam saídas já pagas.');
                 const actual = shares || (a.payer === 'BOTH' ? { M:a.amountM, S:a.amountS } : { [a.payer]:a.amount });
@@ -7310,7 +7348,7 @@ var ContasCore30 = (function () {
         const state=Object.fromEntries(Object.keys(parts).map(w=>[w,'PAID']));
         return { id:event.accountId, name:'Extra '+names[event.credit]+' — '+event.description, group:'Créditos — pagamentos extra',
             payer:event.owner, amount:event.total, amountM:(parts.M||0)/100,amountS:(parts.S||0)/100,
-            scope:event.owner==='SEMPERFIF'?'general':'general', day:Number(event.date.slice(8)),
+            scope:event.owner==='SEMPERFIF'?'semperfif':'general', day:Number(event.date.slice(8)),
             schedule:{kind:'once',start:event.date.slice(0,7),end:event.date.slice(0,7),reason:'Pagamento extra de crédito; gerir na aba do crédito.'},
             personStates:{[y+':'+m]:state}, statuses:Array(12).fill('PENDING'), annualStatesVersion:1,
             creditMovement30:{id:event.id,void:event.void}, paymentNotes:{[y+':'+m]:'Capital: '+euro(C.cents(event.capital))+'; encargos: '+euro(C.cents(event.charges))+'.'} };
@@ -7625,10 +7663,381 @@ var ContasCore30 = (function () {
         }
         watchSync();if(appData)renderApp();
     }
+
+    window.ContasUI30={configForm,extraForm,balanceForm,historyForm,undoEvent,historyGuard,rows};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 
 </script>
 <!-- FIM DA EXTENSÃO CONSOLIDADA R30 -->
+<script id="revision31-core">
+
+/** R31 — regras partilhadas no navegador e no Apps Script. Sem efeitos laterais. */
+var ContasCore31 = (function () {
+    'use strict';
+    const C = ContasCore30;
+    const assert = C.assert;
+    const periodKey = (y,m) => String(y)+':'+Number(m);
+    const monthString = (y,m) => String(y)+'-'+String(Number(m)+1).padStart(2,'0');
+    function occurs(g,y,m) {
+        if (g.deleted || g.excludedYears31?.[String(y)] || g.excludedMonths31?.[periodKey(y,m)]) return false;
+        const s=g.schedule31;
+        if (!s) return Number(g.date.slice(0,4))===Number(y) && Number(g.date.slice(5,7))-1===Number(m);
+        const now=Number(y)*12+Number(m),start=C.index(s.start);
+        if(now<start || (s.end && now>C.index(s.end)))return false;
+        return s.kind==='once'?now===start:s.kind==='yearly'?Number(m)===start%12:s.kind==='monthly';
+    }
+    function parts(g,y,m) {
+        const over=g.monthlyValues31?.[periodKey(y,m)];
+        const n=C.cents(over?.amount ?? g.amount);
+        if(g.owner!=='BOTH')return {[g.owner]:n};
+        const part=over?.splitM ?? (g.splitM31!==undefined ? (n?Math.round(n*C.cents(g.splitM31)/Math.max(1,C.cents(g.amount))):0)/100 : undefined);
+        const a=part===undefined?Math.floor(n/2):C.cents(part);
+        assert(a<=n,'A divisão do ganho ultrapassa o total.');
+        return {M:a,S:n-a};
+    }
+    function selectedParts(p,tab) {
+        if(tab==='geral')return (p.M||0)+(p.S||0);
+        return p[tab==='semperfif'?'SEMPERFIF':tab.toUpperCase()]||0;
+    }
+    function income(records,y,m,tab) {
+        const months=m==='all'?Array.from({length:12},(_,i)=>i):[Number(m)];
+        return months.reduce((total,month)=>total+(records||[]).reduce((sum,g)=>sum+(occurs(g,y,month)?selectedParts(parts(g,y,month),tab):0),0),0);
+    }
+    function legacy(app,y,m,who) {
+        const k=periodKey(y,m)+':'+who;
+        if(Object.prototype.hasOwnProperty.call(app.legacyGains31||{},k))return C.cents(app.legacyGains31[k]);
+        return Number(y)>=2026&&Number(y)<=2027?C.cents(Number(app.ganhos[who]?.[m]||0)):0;
+    }
+    function accountOccurs(a,y,m) {
+        if(a.creditMovement30?.void||a.debtMovement31?.void||a.excludedYears27?.[String(y)]||a.excludedMonths27?.[periodKey(y,m)])return false;
+        const n=Number(y)*12+Number(m),s=a.schedule;
+        if(s){const f=C.index(s.start);if(n<f||(s.end&&n>C.index(s.end)))return false;return s.kind==='once'?n===f:s.kind==='yearly'?Number(m)===f%12:s.kind==='monthly';}
+        return (Array.isArray(a.visibleYears)?a.visibleYears.map(String).includes(String(y)):Number(y)<=2027) &&
+            (a.startMonth==null||Number(y)>(Number(a.startYear)||2026)||(Number(y)===(Number(a.startYear)||2026)&&Number(m)>=Number(a.startMonth)));
+    }
+    function accountParts(a,y,m) {
+        if(a.monthlyValues?.[periodKey(y,m)]?.shares)return a.monthlyValues[periodKey(y,m)].shares;
+        if(a.payer==='BOTH')return {M:Number(a.amountM??a.amount/2),S:Number(a.amountS??a.amount/2)};
+        if(a.payer==='CUSTOM')return {M:Number(a.amountM||0),S:Number(a.amountS||0)};
+        return {[a.payer]:Number(a.amount||0)};
+    }
+    function regular(app,debt) {
+        const a=app.accounts.find(a=>String(a.id)===String(debt.accountId));if(!a)return 0;
+        const periods=new Set(Object.keys(a.personStates||{}));
+        if(a.statuses)for(let m=0;m<12;m++)periods.add('2026:'+m);
+        let total=0;
+        periods.forEach(k=>{const[y,m]=k.split(':').map(Number);if(y*12+m<C.index(debt.referenceDate)||!accountOccurs(a,y,m))return;
+            Object.entries(accountParts(a,y,m)).forEach(([who,n])=>{const st=a.personStates?.[k]?.[who]||(y===2026?a.statuses?.[m]:null);if(st==='PAID')total+=C.cents(Number(n));});});
+        return total;
+    }
+    function debtProject(app,d,today) {
+        const paid=regular(app,d),extra=(d.events||[]).filter(e=>!e.void).reduce((s,e)=>s+C.cents(e.capital),0);
+        const remaining=Math.max(0,C.cents(d.balance)-(paid-d.paidBase)-extra);
+        const months=Math.ceil(remaining/C.cents(d.monthly));let next=C.index(today);
+        if(C.due(next,d.day)<today)next++;
+        return {remaining,original:C.cents(d.total),regular:paid-d.paidBase,extra,remainingMonths:months,estimate:months?C.due(next+months-1,d.day):null,configured:true};
+    }
+    function effectiveOccurs(app,a,y,m,today) {
+        if(!accountOccurs(a,y,m))return false;
+        if(!a.debt31)return true;
+        const d=(app.debts31||[]).find(d=>d.id===a.debt31);
+        if(!d)return true;
+        const n=Number(y)*12+Number(m),now=C.index(today);
+        if(n<now)return true;
+        const p=accountParts(a,y,m),st=a.personStates?.[periodKey(y,m)]||{};
+        if(Object.keys(p).some(w=>st[w]==='PAID'))return true;
+        const model=debtProject(app,d,today);
+        return model.remaining>0&&n<=C.index(model.estimate);
+    }
+    function validate(app,credits) {
+        C.validate(app,credits);
+        assert(app.schema31===undefined||app.schema31===1,'Versão de dados desconhecida.');
+        (app.extraGains30||[]).forEach(g=>{
+            if(g.schedule31){const s=g.schedule31;assert(['once','monthly','yearly'].includes(s.kind)&&/^\d{4}-(0[1-9]|1[0-2])$/.test(s.start)&&C.date(s.start+'-01')&&(!s.end||(/^\d{4}-(0[1-9]|1[0-2])$/.test(s.end)&&C.date(s.end+'-01')&&s.end>=s.start)),'Recorrência de ganho inválida.');}
+            assert(g.category31===undefined||(typeof g.category31==='string'&&g.category31.length<=80),'Categoria de ganho inválida.');
+            if(g.splitM31!==undefined)assert(C.cents(g.splitM31)<=C.cents(g.amount),'Divisão inválida.');
+            Object.entries(g.monthlyValues31||{}).forEach(([k,v])=>{assert(/^\d{4}:(?:[0-9]|1[01])$/.test(k),'Mês de ganho inválido.');C.cents(v.amount);if(v.splitM!==undefined)assert(C.cents(v.splitM)<=C.cents(v.amount),'Divisão mensal inválida.');});
+            Object.entries(g.excludedMonths31||{}).forEach(([k,v])=>assert(/^\d{4}:(?:[0-9]|1[01])$/.test(k)&&v===true,'Exclusão mensal inválida.'));
+            Object.entries(g.excludedYears31||{}).forEach(([k,v])=>assert(/^\d{4}$/.test(k)&&v===true,'Exclusão anual inválida.'));
+        });
+        Object.entries(app.legacyGains31||{}).forEach(([k,v])=>{assert(/^\d{4}:(?:[0-9]|1[01]):(?:m|s|semperfif)$/.test(k),'Referência de ganho legado inválida.');C.cents(v);});
+        const ids=new Set();
+        (app.debts31||[]).forEach(d=>{
+            assert(typeof d.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(d.id)&&!ids.has(d.id),'Dívida duplicada ou inválida.');ids.add(d.id);
+            assert(typeof d.name==='string'&&d.name.trim()&&d.name.length<=120&&['M','S','BOTH'].includes(d.owner),'Descrição ou titular de dívida inválido.');
+            assert(C.cents(d.monthly)>0&&C.cents(d.total)>=C.cents(d.balance)&&C.date(d.referenceDate),'Valores de dívida inválidos.');
+            assert(Number.isInteger(d.day)&&d.day>=1&&d.day<=31&&(!d.end||C.date(d.end))&&Number.isSafeInteger(d.paidBase)&&d.paidBase>=0,'Referência de dívida inválida.');
+            const a=app.accounts.find(a=>String(a.id)===String(d.accountId));assert(a&&!a.creditMovement30&&!a.debtMovement31,'Despesa mensal da dívida em falta.');
+            const ps=accountParts(a,Number(d.referenceDate.slice(0,4)),Number(d.referenceDate.slice(5,7))-1);
+            assert(!ps.SEMPERFIF&&Object.keys(ps).every(w=>d.owner==='BOTH'?['M','S'].includes(w):w===d.owner),'Titular incompatível com a despesa ligada.');
+            assert(Array.isArray(d.events),'Movimentos de dívida inválidos.');
+            d.events.forEach(e=>{
+                assert(typeof e.id==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(e.id)&&!ids.has(e.id)&&typeof e.void==='boolean'&&C.date(e.date),'Movimento duplicado ou inválido.');ids.add(e.id);
+                const t=C.cents(e.total),c=C.cents(e.capital);assert(t>0&&c<=t&&['M','S','BOTH'].includes(e.owner),'Pagamento de dívida inválido.');
+                const linked=app.accounts.filter(a=>a.debtMovement31?.id===e.id);assert(linked.length===1,'Despesa extra de dívida ausente ou duplicada.');
+                const cash=linked[0],k=Number(e.date.slice(0,4))+':'+(Number(e.date.slice(5,7))-1);
+                assert(C.cents(cash.amount)===t&&cash.payer===e.owner&&cash.schedule?.kind==='once'&&cash.schedule.start===e.date.slice(0,7)&&cash.schedule.end===e.date.slice(0,7)&&cash.day===Number(e.date.slice(8))&&cash.debtMovement31.debt===d.id&&cash.debtMovement31.void===e.void,'Despesa extra incoerente.');
+                assert(!cash.excludedYears27?.[e.date.slice(0,4)]&&!cash.excludedMonths27?.[k]&&cash.scope!=='semperfif','Gere este movimento na aba Dívidas.');
+                const actual=accountParts(cash,Number(e.date.slice(0,4)),Number(e.date.slice(5,7))-1),expected=C.allocated(e.total,e.owner);
+                assert(Object.keys(actual).length===Object.keys(expected).length&&Object.entries(expected).every(([who,n])=>C.cents(Number(actual[who]))===n&&cash.personStates?.[k]?.[who]==='PAID'),'Repartição ou estado da despesa extra incoerente.');
+            });
+        });
+        app.accounts.filter(a=>a.debtMovement31).forEach(a=>assert((app.debts31||[]).some(d=>d.events.some(e=>e.id===a.debtMovement31.id)),'Despesa de dívida órfã.'));
+        return true;
+    }
+    return {occurs,parts,income,legacy,accountOccurs,accountParts,regular,debtProject,effectiveOccurs,validate,periodKey,monthString};
+})();
+
+</script>
+<script id="revision31-ui">
+
+/** R31 — novo ecrã integrado. Conserva os formulários, a autenticação e o calendário da base. */
+(function () {
+    'use strict';
+    const C=ContasCore30,G=ContasCore31,$=id=>document.getElementById(id);
+    const keys=['casa','carro','credito_ab'],names={casa:'Casa',carro:'Carro',credito_ab:'Crédito AB'};
+    const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const enc=x=>encodeURIComponent(String(x)),dec=x=>decodeURIComponent(x),clone=x=>JSON.parse(JSON.stringify(x));
+    const euro=n=>(n/100).toLocaleString('pt-PT',{style:'currency',currency:'EUR'});
+    const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+    const uid=p=>p+'_'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+    const stamp=()=>new Date().toISOString(),fmt=d=>d?d.split('-').reverse().join('/'):'Por confirmar';
+    const periods=()=>selectedMonthIdx==='all'?Array.from({length:12},(_,i)=>i):[Number(selectedMonthIdx)];
+    const activeMonth=()=>selectedMonthIdx==='all'?new Date().getMonth():Number(selectedMonthIdx);
+    const period=()=>G.monthString(selectedYear,activeMonth());
+    const periodLabel=()=>selectedMonthIdx==='all'?'Ano '+selectedYear:MONTHS[Number(selectedMonthIdx)]+' '+selectedYear;
+    const creditRows=k=>ContasUI30.rows(k);
+    let booted=false,debtFilter='ALL';const uiState={};
+    function ui(){return uiState[currentTab]||(uiState[currentTab]={mode:'expenses',status:'ALL',query:'',removed:false});}
+    function editable(){C.assert(['loaded','saved','pending'].includes($('sync-status')?.dataset.state),'Aguarda o carregamento e a gravação, ou resolve primeiro o erro de sincronização.');}
+    function payload(){return {casa:CREDIT_CASA_DATA,carro:CREDIT_CARRO_DATA,credito_ab:CREDIT_AB_DATA};}
+    function change(fn){
+        editable();const before=clone({appData,credits:payload()});
+        try{fn();appData.schema31=1;G.validate(appData,payload());saveDataToLocalStorage();}
+        catch(e){appData=before.appData;keys.forEach(k=>creditRows(k).splice(0,creditRows(k).length,...before.credits[k]));throw e;}
+        renderApp();
+    }
+    function button(label,action,secondary=true){return '<button type="button" class="r31-btn'+(secondary?' secondary':'')+'" onclick="'+action+'">'+label+'</button>';}
+    function field(label,id,value='',type='text',extra=''){return '<div class="r31-field"><label for="'+id+'">'+label+'</label><input id="'+id+'" value="'+esc(value)+'" type="'+type+'" '+extra+'></div>';}
+    function number(id){const n=Number($(id).value);C.cents(n);return n;}
+    function select(label,id,values,current,extra=''){return '<div class="r31-field"><label for="'+id+'">'+label+'</label><select id="'+id+'" '+extra+'>'+values.map(([k,v])=>'<option value="'+esc(k)+'"'+(String(k)===String(current)?' selected':'')+'>'+esc(v)+'</option>').join('')+'</select></div>';}
+    function dialog(title,body,submit,label='Guardar'){
+        const d=$('r31-dialog');if(d.open)d.close();
+        d.innerHTML='<form id="r31-form"><div class="r31-row r31-between"><h2 id="r31-dialog-title">'+esc(title)+'</h2><button class="r31-close" type="button" aria-label="Fechar" onclick="ContasR31.close()">×</button></div>'+body+'<p id="r31-error" role="alert" class="r31-error" hidden></p><div class="r31-foot">'+button('Cancelar','ContasR31.close()')+'<button class="r31-btn" type="submit">'+label+'</button></div></form>';
+        $('r31-form').onsubmit=e=>{e.preventDefault();try{if(submit()!==false)d.close();}catch(error){$('r31-error').hidden=false;$('r31-error').textContent=error.message;}};d.showModal();
+    }
+    function guarded(fn){try{return fn();}catch(e){alert(e.message);}}
+    function belongs(a,y,m,tab=currentTab){
+        if(!G.effectiveOccurs(appData,a,y,m,today()))return false;
+        if(tab==='semperfif')return a.payer==='SEMPERFIF';
+        if(tab==='geral')return a.payer!=='SEMPERFIF'&&a.scope!=='semperfif';
+        return a.payer!=='SEMPERFIF'&&a.scope!=='semperfif'&&Number(parts11(a,y,m)[tab.toUpperCase()]||0)>0;
+    }
+    function states(a,y,m){const p=parts11(a,y,m),s=a.personStates?.[y+':'+m]||{};return Object.fromEntries(Object.keys(p).map(w=>[w,s[w]||(Number(y)===2026?a.statuses?.[m]:null)||'PENDING']));}
+    function aggregate(a,y,m){const p=parts11(a,y,m),s=states(a,y,m),who=currentTab==='m'?'M':currentTab==='s'?'S':null;const list=Object.keys(p).filter(w=>Number(p[w])>0&&(!who||who===w)).map(w=>s[w]);return list.length&&list.every(s=>s==='PAID')?'PAID':list.some(s=>s!=='PENDING')?'SEPARATED':'PENDING';}
+    function amount(a,y,m){return Object.entries(parts11(a,y,m)).reduce((n,[w,v])=>n+((currentTab==='m'&&w!=='M')||(currentTab==='s'&&w!=='S')?0:C.cents(Number(v))),0);}
+    function budget(){
+        let expense=0,base=0;const totals={PENDING:0,SEPARATED:0,PAID:0};
+        periods().forEach(m=>{appData.accounts.forEach(a=>{if(!belongs(a,selectedYear,m))return;const p=parts11(a,selectedYear,m),s=states(a,selectedYear,m);Object.entries(p).forEach(([w,v])=>{if(currentTab==='m'&&w!=='M'||currentTab==='s'&&w!=='S')return;const n=C.cents(Number(v));expense+=n;totals[s[w]||'PENDING']+=n;});});
+            (currentTab==='geral'?['m','s']:[currentTab]).forEach(w=>base+=G.legacy(appData,selectedYear,m,w));});
+        const income=base+G.income(appData.extraGains30,selectedYear,selectedMonthIdx,currentTab);
+        return {expense,income,balance:income-expense,...totals};
+    }
+    function periodBar(){return '<div class="r31-period"><div><button aria-label="Período anterior" onclick="ContasR31.shift(-1)">‹</button><button onclick="ContasR31.pickPeriod()">'+periodLabel()+'</button><button aria-label="Período seguinte" onclick="ContasR31.shift(1)">›</button></div>'+button(selectedMonthIdx==='all'?'Mês':'Ano','ContasR31.year()')+'</div>';}
+    function fold(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+    function groupColor(group){const n=Array.from(group).reduce((s,c)=>s+c.charCodeAt(0),0);return ['#dce9fa','#f5dfea','#e8e0fa','#dfefe2','#ffecd6','#dceff3'][n%6];}
+    function accountRow(a,m){
+        const year=Number(selectedYear),value=amount(a,year,m),st=aggregate(a,year,m);
+        const day=a.monthlyValues?.[year+':'+m]?.day??a.day??1;
+        return '<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+esc(a.name)+'</div></div><button class="r31-pill '+st+(String(a.id)==='16'?' shared':'')+'" aria-label="'+esc(a.name)+', '+({PAID:'Pago',SEPARATED:'Separado',PENDING:'Por pagar'}[st])+'. Alterar estado" onclick="ContasR31.status(\''+enc(a.id)+'\','+m+')">'+euro(value)+' · dia '+String(day).padStart(2,'0')+'</button><button class="r31-more" aria-label="Opções da despesa" onclick="ContasR31.expenseOptions(\''+enc(a.id)+'\','+m+')">⋯</button></div>';
+    }
+    function list(){
+        const s=ui(),q=fold(s.query),month=activeMonth();
+        if(s.mode==='gains')return gainsList();
+        const items=appData.accounts.filter(a=>periods().some(m=>belongs(a,selectedYear,m)&&(s.status==='ALL'||aggregate(a,selectedYear,m)===s.status))&&(!q||fold(a.name+' '+a.group).includes(q)));
+        if(!items.length)return '<div class="r31-empty">Sem despesas nesta seleção.</div>';
+        return [...new Set(items.map(a=>a.group||'Geral'))].map(group=>'<div class="r31-group" style="--group-color:'+groupColor(group)+'">'+esc(group)+'</div>'+items.filter(a=>(a.group||'Geral')===group).map(a=>selectedMonthIdx==='all'?'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+esc(a.name)+'</div><div class="r31-muted">Total previsto no ano</div></div><button class="r31-pill" onclick="ContasR31.expenseYear(\''+enc(a.id)+'\')">'+euro(periods().reduce((n,m)=>n+(belongs(a,selectedYear,m)?amount(a,selectedYear,m):0),0))+'</button><button class="r31-more" onclick="ContasR31.expenseOptions(\''+enc(a.id)+'\','+month+')" aria-label="Opções">⋯</button></div>':accountRow(a,month)).join('')).join('');
+    }
+    function gainsList(){
+        const s=ui(),q=fold(s.query);let html='';
+        const baseKeys=currentTab==='geral'?['m','s']:[currentTab];
+        const baseRows=baseKeys.filter(w=>!q||fold('Ordenado '+w+' ganhos existentes').includes(q));
+        if(baseRows.length){html+='<div class="r31-group" style="--group-color:#dfefe2">Ganhos existentes</div>'+baseRows.map(w=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+(w==='semperfif'?'Ganhos Semperfif':'Ordenado '+w.toUpperCase())+'</div><div class="r31-muted">'+(Number(selectedYear)<=2027?'Valor legado preservado; editar cria um valor apenas neste ano/mês.':'Sem cópia automática de anos antigos.')+'</div></div><button class="r31-pill" onclick="ContasR31.legacy(\''+w+'\')">'+euro(periods().reduce((n,m)=>n+G.legacy(appData,selectedYear,m,w),0))+'</button></div>').join('');}
+        const items=(appData.extraGains30||[]).filter(g=>{
+            if(currentTab==='geral'&&g.owner==='SEMPERFIF'||currentTab==='semperfif'&&g.owner!=='SEMPERFIF'||['m','s'].includes(currentTab)&&!Object.hasOwn(G.parts(g,selectedYear,activeMonth()),currentTab.toUpperCase()))return false;
+            const probe=s.removed?{...g,deleted:false,excludedYears31:{},excludedMonths31:{}}:g;
+            return periods().some(m=>G.occurs(probe,selectedYear,m))&&(!q||fold(g.description+' '+g.category31).includes(q));
+        });
+        [...new Set(items.map(g=>g.category31||'Outros ganhos'))].forEach(category=>{
+            html+='<div class="r31-group" style="--group-color:#dfefe2">'+esc(category)+'</div>';
+            items.filter(g=>(g.category31||'Outros ganhos')===category).forEach(g=>{const value=G.income([g],selectedYear,selectedMonthIdx,currentTab);const active=periods().some(m=>G.occurs(g,selectedYear,m));html+='<div class="r31-item'+(!active?' r31-void':'')+'"><div class="r31-grow"><div class="r31-name">'+esc(g.description)+'</div><div class="r31-muted">'+({monthly:'Mensal',yearly:'Anual',once:'Só desta vez'}[g.schedule31?.kind||'once'])+(!active?' · Removido neste período':'')+'</div></div><button class="r31-pill" onclick="ContasR31.gainOptions(\''+g.id+'\')">'+euro(value)+' · dia '+g.date.slice(8)+'</button><button class="r31-more" onclick="ContasR31.gainOptions(\''+g.id+'\')" aria-label="Opções do ganho">⋯</button></div>';});
+        });
+        return html||'<div class="r31-empty">Sem ganhos nesta seleção.</div>';
+    }
+    function dashboard(){
+        const b=budget(),s=ui();
+        return periodBar()+'<div class="r31-dashboard"><section><div class="r31-card r31-balance"><div class="r31-muted">Saldo previsto</div><div class="r31-big '+(b.balance<0?'r31-negative':'r31-positive')+'">'+(b.balance>0?'+ ':'')+euro(b.balance)+'</div><p class="r31-muted">Ganhos '+euro(b.income)+' · Despesas '+euro(b.expense)+'</p></div><div class="r31-stats">'+[['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']].map(([k,l])=>'<div class="r31-card r31-stat"><span class="r31-muted">'+l+'</span><strong style="color:'+(k==='PAID'?'var(--r31-accent)':k==='SEPARATED'?'#9c7610':'inherit')+'">'+euro(b[k])+'</strong></div>').join('')+'</div><p class="r31-muted" style="padding:12px 4px">Previsão do período, não saldo bancário. Semperfif fica separada das contas pessoais.</p></section><section class="r31-card r31-list"><div class="r31-listhead"><div class="r31-row r31-between"><div class="r31-segments"><button aria-pressed="'+(s.mode==='expenses')+'" onclick="ContasR31.mode(\'expenses\')">Despesas</button><button aria-pressed="'+(s.mode==='gains')+'" onclick="ContasR31.mode(\'gains\')">Ganhos</button></div>'+button('+ Adicionar','ContasR31.add()',false)+'</div><input class="r31-search" aria-label="Procurar movimento" placeholder="Procurar movimento…" value="'+esc(s.query)+'" oninput="ContasR31.search(this.value)">'+(s.mode==='expenses'?'<div class="r31-filters">'+[['ALL','Todas'],['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']].map(([k,l])=>'<button class="r31-filter" aria-pressed="'+(s.status===k)+'" onclick="ContasR31.filter(\''+k+'\')">'+l+'</button>').join('')+'</div>':'<label class="r31-muted"><input type="checkbox" '+(s.removed?'checked':'')+' onchange="ContasR31.removed(this.checked)"> Mostrar removidos</label>')+'</div><div id="r31-listbody">'+list()+'</div><p class="r31-hint">'+(s.mode==='expenses'?'Toca no valor para alterar o estado.':'Toca num ganho para editar uma ocorrência ou a série.')+'</p></section></div>';
+    }
+
+    function expenseForm(id){
+        const a=id?appData.accounts.find(a=>String(a.id)===String(id)):null;
+        if(a?.creditMovement30||a?.debtMovement31)throw Error('Gere este movimento no crédito ou dívida correspondente.');
+        if(a&&['1','11','16'].includes(String(a.id))){openEditModal(a.id);return;}
+        const v=a||{name:'',amount:'',group:'',payer:currentTab==='semperfif'?'SEMPERFIF':currentTab==='s'?'S':'M',day:1,schedule:{kind:'once',start:period(),end:period()}};
+        const groups=[...new Set(appData.accounts.map(a=>a.group).filter(Boolean))];
+        dialog(a?'Editar despesa — origem':'Adicionar despesa',field('Descrição','e31-name',v.name,'text','required maxlength="120"')+'<div class="r31-grid">'+field('Valor (€)','e31-amount',v.amount,'number','required min="0" max="1000000000" step="0.01"')+field('Dia de pagamento','e31-day',v.day||1,'number','required min="1" max="31"')+'</div>'+field('Categoria (nova ou existente)','e31-group',v.group||'','text','required maxlength="80" list="e31-groups"')+'<datalist id="e31-groups">'+groups.map(g=>'<option value="'+esc(g)+'">').join('')+'</datalist>'+select('Atribuir a','e31-owner',[['M','M'],['S','S'],['BOTH','Dividir 50/50'],['CUSTOM','Dividir valores'],['SEMPERFIF','Semperfif']],v.payer,'onchange="ContasR31.expenseFields()"')+'<div id="e31-custom" hidden><div class="r31-grid">'+field('Parte de M (€)','e31-m',v.amountM??'','number','min="0" step="0.01"')+field('Parte de S (€)','e31-s',v.amountS??'','number','min="0" step="0.01"')+'</div></div>'+select('Repetição','e31-repeat',[...(a&&!a.schedule?[['legacy','Manter vigência legada']]:[]),['once','Só desta vez'],['monthly','Todos os meses'],['yearly','Todos os anos']],v.schedule?.kind||'legacy','onchange="ContasR31.expenseFields()"')+'<div id="e31-start-field">'+field('Primeiro mês / mês único','e31-start',v.schedule?.start||period(),'month','required')+'</div><div id="e31-end-field" hidden>'+field('Último mês (opcional)','e31-end',v.schedule?.end||'','month')+'</div>'+(!a?select('Estado inicial','e31-status',[['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']],'PENDING'):'<p class="r31-muted" style="margin-top:12px">Esta edição altera a origem. Os estados, exclusões e valores mensais anteriores são preservados. Para alterar apenas um mês, usa essa opção na lista.</p>')+'<button class="r31-link" type="button" onclick="document.getElementById(\'e31-note-field\').hidden=false;this.hidden=true">Adicionar / ver nota</button><div id="e31-note-field" hidden>'+field('Nota da origem','e31-note',v.note31||'','text','maxlength="600"')+'</div>'+(a?'<details class="r31-details"><summary>Remover ou terminar</summary><p>As exclusões reversíveis continuam no formulário completo.</p>'+button('Abrir opções completas','ContasR31.close();openEditModal(decodeURIComponent(\''+enc(a.id)+'\'))')+'</details>':''),()=>{
+            const amount=number('e31-amount'),payer=$('e31-owner').value,kind=$('e31-repeat').value,start=$('e31-start').value,end=$('e31-end').value;
+            const next={...(a||{}),id:a?.id||uid('account'),name:$('e31-name').value.trim(),group:$('e31-group').value.trim(),amount,payer,scope:payer==='SEMPERFIF'?'semperfif':'general',day:Number($('e31-day').value),note31:$('e31-note').value};
+            C.assert(next.name&&next.group,'Preenche a descrição e a categoria.');
+            if(payer==='BOTH'){const n=C.cents(amount);next.amountM=Math.floor(n/2)/100;next.amountS=(n-Math.floor(n/2))/100;}
+            else if(payer==='CUSTOM'){next.amountM=number('e31-m');next.amountS=number('e31-s');C.assert(C.cents(next.amountM)+C.cents(next.amountS)===C.cents(amount),'As partes devem somar o valor total.');}
+            else {next.amountM=payer==='M'?amount:0;next.amountS=payer==='S'?amount:0;}
+            if(kind!=='legacy'){C.assert(C.date(start+'-01')&&(!end||end>=start),'Confirma a vigência.');next.schedule={kind,start,end:kind==='once'?start:end};}
+            if(!a){next.statuses=Array(12).fill('PENDING');next.personStates={};next.annualStatesVersion=1;const[y,m]=start.split('-').map(Number);next.personStates[y+':'+(m-1)]=Object.fromEntries(Object.keys(G.accountParts(next,y,m-1)).map(w=>[w,$('e31-status').value]));}
+            change(()=>{if(a)appData.accounts[appData.accounts.indexOf(a)]=next;else appData.accounts.push(next);});
+        });expenseFields();
+    }
+    function expenseFields(){const kind=$('e31-repeat').value;$('e31-custom').hidden=$('e31-owner').value!=='CUSTOM';$('e31-start-field').hidden=kind==='legacy';$('e31-start').required=kind!=='legacy';$('e31-end-field').hidden=kind==='once'||kind==='legacy';}
+
+    function gainForm(id){
+        const record=id?(appData.extraGains30||[]).find(g=>g.id===id):null;
+        const g=record||{description:'',amount:'',date:period()+'-01',owner:currentTab==='semperfif'?'SEMPERFIF':currentTab==='s'?'S':'M',category31:'',schedule31:{kind:'once'}};
+        const categories=[...new Set([...(appData.accounts||[]).map(a=>a.group),...(appData.extraGains30||[]).map(g=>g.category31)].filter(Boolean))];
+        dialog(record?'Editar série de ganhos':'Adicionar ganho',field('Descrição','g31-description',g.description,'text','required maxlength="180"')+'<div class="r31-grid">'+field('Valor (€)','g31-amount',g.amount,'number','required min="0.01" max="1000000000" step="0.01"')+field('Primeira data / data única','g31-date',g.date,'date','required')+'</div>'+field('Categoria (nova ou existente)','g31-category',g.category31||'','text','required maxlength="80" list="g31-groups"')+'<datalist id="g31-groups">'+categories.map(s=>'<option value="'+esc(s)+'">').join('')+'</datalist>'+select('Atribuir a','g31-owner',[['M','M'],['S','S'],['BOTH','Dividir M + S'],['SEMPERFIF','Semperfif']],g.owner,'onchange="ContasR31.gainFields()"')+'<div id="g31-split-field" hidden>'+field('Parte de M (€; vazio = metade)','g31-split',g.splitM31??'','number','min="0" step="0.01"')+'</div>'+select('Repetição','g31-repeat',[['once','Só desta vez'],['monthly','Todos os meses'],['yearly','Todos os anos']],g.schedule31?.kind||'once','onchange="ContasR31.gainFields()"')+'<div id="g31-end-field" hidden>'+field('Último mês (opcional)','g31-end',g.schedule31?.end||'','month')+'</div><button class="r31-link" type="button" onclick="document.getElementById(\'g31-note-field\').hidden=false;this.hidden=true">Adicionar / ver nota</button><div id="g31-note-field" hidden>'+field('Nota','g31-note',g.note31||'','text','maxlength="600"')+'</div>'+(record?'<p class="r31-muted" style="margin-top:12px">Esta edição altera a origem da série. Os valores e exclusões definidos para ocorrências individuais mantêm-se. Para alterar só um mês, escolhe Editar ocorrência.</p>':''),()=>{
+            const amount=number('g31-amount'),owner=$('g31-owner').value,date=$('g31-date').value;
+            const next={...(record||{}),id:record?.id||uid('gain'),description:$('g31-description').value.trim(),amount,date,owner,category31:$('g31-category').value.trim(),note31:$('g31-note').value,deleted:record?.deleted||false,createdAt:record?.createdAt||stamp(),updatedAt:stamp(),schedule31:{kind:$('g31-repeat').value,start:date.slice(0,7),end:$('g31-repeat').value==='once'?'':$('g31-end').value}};
+            delete next.splitM31;if(owner==='BOTH'&&$('g31-split').value!=='')next.splitM31=number('g31-split');
+            change(()=>{appData.extraGains30||=[];if(record){next.revisions=[...(record.revisions||[]),{at:stamp(),before:clone(record)}];appData.extraGains30[appData.extraGains30.indexOf(record)]=next;}else appData.extraGains30.push(next);});
+        });gainFields();
+    }
+    function gainFields(){$('g31-split-field').hidden=$('g31-owner').value!=='BOTH';$('g31-end-field').hidden=$('g31-repeat').value==='once';}
+    function gainOptions(id){
+        const g=appData.extraGains30.find(g=>g.id===id);dialog(g.description,'<p class="r31-muted">Escolhe uma ação. Remover uma ocorrência não apaga o histórico nem os restantes meses.</p><div class="r31-stack" style="margin-top:15px">'+button('Editar só uma ocorrência','ContasR31.occurrence(\''+id+'\')')+button('Editar origem / série','ContasR31.gain(\''+id+'\')')+button('Remover só este mês','ContasR31.removeGain(\''+id+'\',\'month\')')+button('Remover só este ano','ContasR31.removeGain(\''+id+'\',\'year\')')+button(g.deleted?'Restaurar a série':'Remover a série','ContasR31.removeGain(\''+id+'\',\'series\')')+button('Restaurar o mês e ano selecionados','ContasR31.removeGain(\''+id+'\',\'restore\')')+'</div>',()=>true,'Fechar');
+    }
+    function removeGain(id,kind){
+        const g=appData.extraGains30.find(g=>g.id===id);if(kind==='month'&&selectedMonthIdx==='all')throw Error('Escolhe primeiro um mês.');
+        if(!confirm('Confirmar esta alteração ao ganho? A auditoria será preservada.'))return;
+        change(()=>{g.revisions||=[];g.revisions.push({at:stamp(),before:{deleted:g.deleted,excludedMonths31:clone(g.excludedMonths31||{}),excludedYears31:clone(g.excludedYears31||{})}});
+            if(kind==='month')(g.excludedMonths31||={})[selectedYear+':'+Number(selectedMonthIdx)]=true;
+            if(kind==='year')(g.excludedYears31||={})[String(selectedYear)]=true;
+            if(kind==='series')g.deleted=!g.deleted;
+            if(kind==='restore'){g.deleted=false;if(g.excludedYears31)delete g.excludedYears31[String(selectedYear)];if(g.excludedMonths31)delete g.excludedMonths31[selectedYear+':'+activeMonth()];}
+        });$('r31-dialog').close();
+    }
+    function occurrence(id){
+        const g=appData.extraGains30.find(g=>g.id===id),k=selectedYear+':'+activeMonth(),v=g.monthlyValues31?.[k];
+        dialog('Editar ocorrência — '+g.description,field('Mês e ano','g31-period',period(),'month','required')+field('Valor apenas neste mês (€)','g31-occ-amount',v?.amount??g.amount,'number','required min="0" step="0.01"')+(g.owner==='BOTH'?field('Parte de M (€; vazio = metade)','g31-occ-split',v?.splitM??'','number','min="0" step="0.01"'):''),()=>{
+            const[y,mm]=$('g31-period').value.split('-').map(Number),m=mm-1;C.assert(G.occurs({...g,deleted:false,excludedMonths31:{},excludedYears31:{}},y,m),'Este mês não pertence à série.');
+            const next={amount:number('g31-occ-amount')};if(g.owner==='BOTH'&&$('g31-occ-split').value!=='')next.splitM=number('g31-occ-split');
+            change(()=>{g.monthlyValues31||={};g.revisions||=[];g.revisions.push({at:stamp(),period:y+':'+m,before:g.monthlyValues31[y+':'+m]||null});g.monthlyValues31[y+':'+m]=next;});
+        });
+    }
+    function legacy(who){
+        dialog('Editar ganho existente — '+who.toUpperCase(),'<p class="r31-muted">Altera apenas o ano e mês escolhidos. Os valores antigos comuns a 2026/2027 não são reescritos.</p>'+field('Mês e ano','g31-legacy-period',period(),'month','required')+field('Valor (€)','g31-legacy-amount',G.legacy(appData,selectedYear,activeMonth(),who)/100,'number','required min="0" step="0.01"'),()=>{const[y,mm]=$('g31-legacy-period').value.split('-').map(Number),n=number('g31-legacy-amount');change(()=>{appData.legacyGains31||={};appData.legacyGains31[y+':'+(mm-1)+':'+who]=n;});});
+    }
+    function statusForm(id,m){
+        const a=appData.accounts.find(a=>String(a.id)===String(id));
+        C.assert(a,'Despesa inexistente.');
+        if(a.creditMovement30){switchTab(a.creditMovement30.credit||keys.find(k=>(appData.creditTools30?.events||[]).some(e=>e.id===a.creditMovement30.id&&e.credit===k))||'carro');return;}
+        if(a.debtMovement31){customDetail(a.debtMovement31.debt);return;}
+        const ps=Object.keys(parts11(a,selectedYear,m)).filter(w=>Number(parts11(a,selectedYear,m)[w])>0&&(!['m','s'].includes(currentTab)||w===currentTab.toUpperCase()));
+        dialog(a.name,'<p class="r31-muted">'+MONTHS[m]+' '+selectedYear+' · '+euro(amount(a,selectedYear,m))+'</p>'+ps.map(w=>'<div class="r31-field"><label>'+esc(w)+'</label><div class="r31-row r31-wrap">'+['PENDING','SEPARATED','PAID'].map(s=>button({PENDING:'Por pagar',SEPARATED:'Separado',PAID:'Pago'}[s],'ContasR31.setStatus(\''+enc(id)+'\','+m+',\''+w+'\',\''+s+'\')',states(a,selectedYear,m)[w]!==s)).join('')+'</div></div>').join('')+'<p class="r31-muted" style="margin-top:12px">Separado é reservado, ainda não pago.</p>',()=>true,'Fechar');
+    }
+    function setStatus(id,m,who,value){
+        const a=appData.accounts.find(a=>String(a.id)===String(id));const k=keys.find(k=>String(appData.creditTools30?.configs?.[k]?.accountId||({casa:'1',carro:'11',credito_ab:'16'}[k]))===String(a.id));
+        if(k)ContasUI30.historyGuard(k,G.monthString(selectedYear,m)+'-01');
+        change(()=>{const p=selectedYear+':'+m;a.personStates||={};a.personStates[p]||={};a.personStates[p][who]=value;syncLinkedCredit(a,m);});
+        statusForm(id,m);
+    }
+    function expenseOptions(id,m){
+        const a=appData.accounts.find(a=>String(a.id)===String(id));if(a.debtMovement31){customDetail(a.debtMovement31.debt);return;}
+        dialog(a.name,button('Editar só este mês','ContasR31.monthExpense(\''+enc(id)+'\','+m+')')+' '+button('Editar despesa / recorrência','ContasR31.expense(\''+enc(id)+'\')'),()=>true,'Fechar');
+    }
+    function creditScreen(k){
+        const config=appData.creditTools30?.configs?.[k],model=C.project(creditRows(k),appData.creditTools30,k,today()),list=creditRows(k);
+        const due=list.filter(r=>r.status!=='BEGINNING'&&C.date(r.date)&&r.date<today()&&r.status!=='PAID');
+        const rate=config?.monthly||0;
+        const overdue=config?.mode==='fixed'?Math.max(0,Math.ceil((Math.max(0,(Math.min(C.index(today()),C.index(config.end))-C.index(config.start)+(C.due(C.index(today()),config.day)<today()?1:0))*C.cents(rate))-C.paid(list,'fixed',config.start))/Math.max(1,C.cents(rate)))):due.length;
+        const title='<h2>'+names[k]+'</h2>';
+        if(!model.configured)return '<section class="r31-card">'+title+'<p class="r31-note" style="margin-top:15px">Define o plano para calcular o remanescente e a data. Não foram inventados montantes ou datas contratuais.</p><div style="margin-top:15px">'+button('Definir plano','ContasUI30.configForm(\''+k+'\')',false)+'</div></section>';
+        const percent=model.original?Math.max(0,Math.min(100,(model.original-model.remaining)/model.original*100)):0;
+        return '<div class="r31-stack r31-creditgrid"><section class="r31-card"><div class="r31-muted">'+(config.mode==='fixed'?'Falta pagar · prestações fixas':'Capital em dívida · estimativa')+'</div><div class="r31-big">'+euro(model.remaining)+'</div><div class="r31-grid"><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(config.monthly))+'</strong></div><div><span class="r31-muted">Saídas registadas</span><strong>'+euro(model.regularCash+model.extraCash)+'</strong></div></div><div class="r31-progress" role="progressbar" aria-label="Progresso financeiro do modelo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(percent)+'"><div style="width:'+percent+'%"></div></div><p class="r31-muted">'+(model.remainingMonths===null?'Prazo por confirmar':model.remainingMonths+' prestações equivalentes por pagar')+' · '+overdue+' vencimentos por regularizar</p></section><section class="r31-card"><h2 style="margin-bottom:15px">Previsão de fim</h2><div class="r31-grid"><div class="r31-date"><span class="r31-muted">Fim original</span><strong>'+fmt(config.end)+'</strong></div><div class="r31-date"><span class="r31-muted">Fim previsto</span><strong>'+(model.remaining===0?'Liquidado':fmt(model.estimate))+'</strong></div></div><details class="r31-details"><summary>Como é calculado</summary><p>'+(config.mode==='fixed'?'Projeção por prestações fixas sem novos juros. Regularizar uma prestação recupera o atraso correspondente; reabrir a aba não acrescenta meses.':'Projeção por amortização de capital; juros e encargos não abatem capital. Sem amortização prevista não é inventado um prazo.')+'</p><p>O progresso mede valor, não o número de linhas. Saídas registadas incluem encargos; não são capital amortizado.</p>'+(model.missingCapital?'<p>Há prestações sem amortização discriminada: confirma o histórico antes de confiar na previsão.</p>':'')+(model.overpaid?'<p>Os pagamentos excedem o saldo do modelo. Revê os dados.</p>':'')+'</details></section><section class="r31-card r31-wide"><div class="r31-row r31-between"><h2>Prestações por regularizar</h2><span class="r31-muted">'+due.length+' registos</span></div>'+due.slice(-4).map(r=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+MONTHS[Number(r.date.slice(5,7))-1]+' '+r.date.slice(0,4)+'</div></div><button class="r31-pill '+r.status+'" onclick="ContasUI30.historyForm(\''+k+'\',\''+r.date+'\')">'+euro(C.cents(Number(r.installment)||config.monthly))+' · dia '+r.date.slice(8)+'</button></div>').join('')+(!due.length?'<div class="r31-empty">Sem registos vencidos por regularizar.</div>':'')+'<p class="r31-hint">A falta de uma linha histórica não prova que a prestação foi paga; confirma o plano e o histórico.</p></section><section class="r31-wide"><div class="r31-row r31-wrap">'+button('+ Pagamento extra','ContasUI30.extraForm(\''+k+'\')',false)+button('Ver histórico','ContasR31.history(\''+k+'\')')+'</div><details class="r31-details"><summary>Gerir crédito</summary><div class="r31-row r31-wrap" style="margin-top:12px">'+button('Editar plano','ContasUI30.configForm(\''+k+'\')')+button('Corrigir prestação','ContasUI30.historyForm(\''+k+'\')')+button('Acertar saldo','ContasUI30.balanceForm(\''+k+'\')')+button('Movimentos e auditoria','ContasR31.audit(\''+k+'\')')+'</div></details></section></div>';
+    }
+    function history(k){dialog('Histórico — '+names[k],'<p class="r31-muted">Histórico integral recebido, incluindo os anos anteriores a 2026.</p>'+creditRows(k).filter(r=>r.status!=='BEGINNING').map(r=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+fmt(r.date)+'</div><div class="r31-muted">'+({PAID:'Pago',PENDING:'Por pagar',SEPARATED:'Separado'}[r.status]||'Por confirmar')+'</div></div>'+button(euro(C.cents(Number(r.installment||0))),'ContasR31.close();ContasUI30.historyForm(\''+k+'\',\''+r.date+'\')')+'</div>').join(''),()=>true,'Fechar');}
+    function audit(k){const events=(appData.creditTools30?.events||[]).filter(e=>e.credit===k).slice().reverse();dialog('Movimentos — '+names[k],events.length?events.map(e=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+({extra:'Pagamento extra',balance:'Acerto de saldo',history:'Correção de prestação'}[e.type])+'</div><div class="r31-muted">'+fmt(e.date)+' · '+esc(e.description)+(e.void?' · Anulado':'')+'</div></div>'+(!(e.type==='history'&&e.void)?button(e.void?'Restaurar':'Anular','ContasR31.close();ContasUI30.undoEvent(\''+e.id+'\')'):'')+'</div>').join(''):'<div class="r31-empty">Ainda não há movimentos adicionais.</div>',()=>true,'Fechar');}
+    function creditOwner(k){const id=appData.creditTools30?.configs?.[k]?.accountId||({casa:'1',carro:'11',credito_ab:'16'}[k]);const a=appData.accounts.find(a=>String(a.id)===String(id));return ['M','S'].includes(a?.payer)?a.payer:a?.payer==='BOTH'||a?.payer==='CUSTOM'?'BOTH':null;}
+    function debtsScreen(){
+        const t=appData.creditTools30,items=keys.map(k=>({id:k,name:names[k],owner:creditOwner(k),model:C.project(creditRows(k),t,k,today()),monthly:t?.configs?.[k]?.monthly||0,end:t?.configs?.[k]?.end||null,standard:true})).concat((appData.debts31||[]).map(d=>({id:d.id,name:d.name,owner:d.owner,model:G.debtProject(appData,d,today()),monthly:d.monthly,end:d.end})));
+        const visible=items.filter(i=>debtFilter==='ALL'||i.owner===debtFilter),configured=visible.filter(i=>i.model.configured),sum=configured.reduce((s,i)=>s+i.model.remaining,0),monthly=visible.reduce((s,i)=>s+C.cents(i.monthly),0),total=configured.reduce((s,i)=>s+i.model.original,0);
+        const missing=visible.filter(i=>!i.model.configured).length,unknown=configured.filter(i=>i.model.remaining>0&&!i.model.estimate).length,dates=configured.map(i=>i.model.estimate).filter(Boolean).sort();
+        return '<div class="r31-stack"><div class="r31-row r31-between"><div><h2>Dívidas</h2><p class="r31-muted">Referência atual: '+fmt(today())+' · valores partilhados contados uma única vez</p></div>'+button('+ Adicionar','ContasR31.newDebt()',false)+'</div><div class="r31-grid"><div class="r31-card"><span class="r31-muted">Total por pagar'+(missing?' · parcial':'')+'</span><div class="r31-big">'+euro(sum)+'</div></div><div class="r31-card"><span class="r31-muted">Prestações mensais definidas</span><div class="r31-big">'+euro(monthly)+'</div></div><div class="r31-card"><span class="r31-muted">Total dos planos / referências</span><strong>'+euro(total)+'</strong></div><div class="r31-card"><span class="r31-muted">Conclusão do conjunto · estimativa</span><strong>'+(missing||unknown?'Por confirmar':dates.length?fmt(dates.at(-1)):'Sem dívida configurada por pagar')+'</strong></div></div>'+(missing?'<p class="r31-note">Há '+missing+' créditos sem plano definido. O total é parcial; não inclui saldos por confirmar.</p>':'')+'<div class="r31-filters">'+[['ALL','Todos'],['M','M'],['S','S'],['BOTH','Ambos']].map(([k,l])=>'<button class="r31-filter" aria-pressed="'+(debtFilter===k)+'" onclick="ContasR31.debtFilter(\''+k+'\')">'+l+'</button>').join('')+'</div>'+visible.map(i=>'<button type="button" class="r31-card" style="text-align:left;width:100%;cursor:pointer" onclick="'+(i.standard?'switchTab(\''+i.id+'\')':'ContasR31.debt(\''+i.id+'\')')+'"><div class="r31-row r31-between"><h2>'+esc(i.name)+'</h2><span>›</span></div><p class="r31-muted">'+(i.owner==='BOTH'?'Ambos':i.owner||'Titular por confirmar')+'</p><div class="r31-grid" style="margin-top:14px"><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(i.monthly))+'</strong></div><div><span class="r31-muted">Falta pagar</span><strong>'+(i.model.configured?euro(i.model.remaining):'Por definir')+'</strong></div></div><p class="r31-muted" style="margin-top:12px">'+(i.model.configured?(i.model.remainingMonths===null?'Prazo por confirmar':i.model.remainingMonths+' prestações equivalentes')+' · '+(i.model.remaining===0?'Liquidado':fmt(i.model.estimate)):'Abre o crédito e confirma o plano.')+'</p></button>').join('')+'</div>';
+    }
+    function newDebt(){
+        const candidates=appData.accounts.filter(a=>a.payer!=='SEMPERFIF'&&!a.creditMovement30&&!a.debtMovement31&&!a.debt31&&!['1','11','16'].includes(String(a.id)));
+        dialog('Adicionar dívida',field('Nome','d31-name','','text','required maxlength="120"')+select('Titular','d31-owner',[['M','M'],['S','S'],['BOTH','Ambos']],'M')+'<div class="r31-grid">'+field('Total de referência (€)','d31-total','','number','required min="0.01" step="0.01"')+field('Valor restante confirmado (€)','d31-balance','','number','required min="0" step="0.01"')+'</div>'+field('Mensalidade fixa (€)','d31-monthly','','number','required min="0.01" step="0.01"')+field('Data da conferência do saldo','d31-date',today(),'date','required max="'+today()+'"')+field('Dia de vencimento','d31-day',1,'number','required min="1" max="31"')+field('Fim original (opcional)','d31-end','','date')+select('Despesa mensal','d31-account',[['','Criar uma despesa mensal ligada'],...candidates.map(a=>[a.id,a.name])],'')+'<p class="r31-note" style="margin-top:12px">Modelo de prestações fixas, sem novos juros. Liga uma despesa que já exista ou cria uma única despesa mensal. Pagamentos anteriores à conferência não voltam a ser abatidos.</p>',()=>{
+            const d={id:uid('debt'),name:$('d31-name').value.trim(),owner:$('d31-owner').value,total:number('d31-total'),balance:number('d31-balance'),monthly:number('d31-monthly'),referenceDate:$('d31-date').value,day:Number($('d31-day').value),end:$('d31-end').value,events:[],paidBase:0};
+            change(()=>{appData.debts31||=[];let a=appData.accounts.find(a=>String(a.id)===$('d31-account').value);
+                if(!a){const p=C.allocated(d.monthly,d.owner);a={id:uid('account'),name:d.name,group:'Dívidas',payer:d.owner,amount:d.monthly,amountM:(p.M||0)/100,amountS:(p.S||0)/100,scope:'general',day:d.day,schedule:{kind:'monthly',start:d.referenceDate.slice(0,7),end:''},statuses:Array(12).fill('PENDING'),personStates:{},annualStatesVersion:1,debt31:d.id};appData.accounts.push(a);}
+                d.accountId=String(a.id);d.paidBase=G.regular(appData,d);appData.debts31.push(d);
+            });
+        });
+    }
+    function customDetail(id){
+        const d=appData.debts31.find(d=>d.id===id),m=G.debtProject(appData,d,today());
+        dialog(d.name,'<p class="r31-muted">Plano fixo sem juros · '+(d.owner==='BOTH'?'Ambos':d.owner)+'</p><div class="r31-big">'+euro(m.remaining)+'</div><p class="r31-muted">'+m.remainingMonths+' prestações equivalentes · '+(m.remaining?fmt(m.estimate):'Liquidado')+'</p><div class="r31-row r31-wrap" style="margin-top:15px">'+button('Registar prestação','ContasR31.debtPayment(\''+id+'\')')+button('+ Pagamento extra','ContasR31.customExtra(\''+id+'\')',false)+'</div><p class="r31-muted" style="margin-top:15px">A prestação é marcada na despesa mensal ligada; não cria uma segunda saída. O extra cria apenas uma despesa na sua data.</p><details class="r31-details"><summary>Movimentos extra</summary>'+(d.events.length?d.events.slice().reverse().map(e=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+euro(C.cents(e.total))+'</div><div class="r31-muted">'+fmt(e.date)+' · capital '+euro(C.cents(e.capital))+(e.void?' · Anulado':'')+'</div></div>'+button(e.void?'Repor':'Anular','ContasR31.toggleCustom(\''+id+'\',\''+e.id+'\')')+'</div>').join(''):'<p>Sem movimentos extra.</p>')+'</details>',()=>true,'Fechar');
+    }
+    function debtPayment(id){const d=appData.debts31.find(d=>d.id===id);$('r31-dialog').close();const original=currentTab;currentTab='dividas';statusForm(d.accountId,activeMonth());currentTab=original;}
+    function customExtra(id){const d=appData.debts31.find(d=>d.id===id);dialog('Pagamento extra — '+d.name,'<div class="r31-grid">'+field('Total pago (€)','d31-extra-total','','number','required min="0.01" step="0.01"')+field('Abate à dívida (€)','d31-extra-capital','','number','required min="0" step="0.01"')+'</div>'+field('Data','d31-extra-date',today(),'date','required max="'+today()+'"')+select('Quem pagou','d31-extra-owner',[['M','M'],['S','S'],['BOTH','Ambos · 50/50']],d.owner),()=>{
+            const e={id:uid('debtpay'),date:$('d31-extra-date').value,total:number('d31-extra-total'),capital:number('d31-extra-capital'),owner:$('d31-extra-owner').value,void:false};C.assert(C.cents(e.capital)<=G.debtProject(appData,d,today()).remaining,'O abatimento ultrapassa o saldo.');
+            change(()=>{const p=C.allocated(e.total,e.owner),k=Number(e.date.slice(0,4))+':'+(Number(e.date.slice(5,7))-1);d.events.push(e);appData.accounts.push({id:uid('account'),name:'Extra '+d.name,group:'Dívidas — extras',payer:e.owner,amount:e.total,amountM:(p.M||0)/100,amountS:(p.S||0)/100,scope:'general',day:Number(e.date.slice(8)),schedule:{kind:'once',start:e.date.slice(0,7),end:e.date.slice(0,7)},personStates:{[k]:Object.fromEntries(Object.keys(p).map(w=>[w,'PAID']))},annualStatesVersion:1,statuses:Array(12).fill('PENDING'),debtMovement31:{id:e.id,debt:d.id,void:false}});});
+        });}
+    function toggleCustom(id,event){change(()=>{const d=appData.debts31.find(d=>d.id===id),e=d.events.find(e=>e.id===event);e.void=!e.void;appData.accounts.find(a=>a.debtMovement31?.id===event).debtMovement31.void=e.void;});customDetail(id);}
+    function paint(){
+        if(!booted||!appData)return;document.body.dataset.r31='1';
+        const colors={geral:'#168772',m:'#3266dd',s:'#cc4265',semperfif:'#8052c9',casa:'#bd7838',carro:'#078da5',credito_ab:'#7454bd',dividas:'#456fc8'};
+        document.documentElement.style.setProperty('--r31-accent',colors[currentTab]||'#3266dd');
+        $('r31-content').innerHTML=currentTab==='dividas'?debtsScreen():keys.includes(currentTab)?creditScreen(currentTab):dashboard();
+        if(currentTab==='dividas'){$('current-tab-subtitle').textContent='Dívidas — resumo atual';$('header-icon-badge').textContent='€';}
+        $('r31-calendar').hidden=!isCalendarOpen||!['geral','m','s'].includes(currentTab);
+    }
+    function boot(){
+        if(booted)return;booted=true;
+        const root=document.createElement('section');root.id='r31-root';root.innerHTML='<div id="r31-content"></div><div id="r31-calendar" style="margin-top:18px"></div>';
+        document.querySelector('body>main').append(root);const drawer=$('calendar-drawer');if(drawer)$('r31-calendar').append(drawer);
+        const d=document.createElement('dialog');d.id='r31-dialog';d.setAttribute('aria-labelledby','r31-dialog-title');document.body.append(d);
+        const first=document.querySelector('.nav-tab-btn[data-tab="casa"]'),nav=first?.parentElement||document.querySelector('.nav-tab-btn')?.parentElement;
+        if(nav&&!document.querySelector('[data-tab="dividas"]')){const b=document.createElement('button');b.dataset.tab='dividas';b.className='nav-tab-btn px-3.5 py-2 rounded-full';b.textContent='Dívidas';b.onclick=()=>switchTab('dividas');nav.insertBefore(b,first||null);}
+        const priorRender=renderApp;renderApp=function(){if(currentTab==='dividas'){paint();return;}const value=priorRender.apply(this,arguments);paint();return value;};
+        const priorOccurs=occurs11;occurs11=function(a,y,m){return a.debt31||a.debtMovement31?G.effectiveOccurs(appData,a,y,m,today()):priorOccurs(a,y,m);};
+        const priorSave=saveDataToLocalStorage;saveDataToLocalStorage=function(){if(appData){appData.schema31=1;G.validate(appData,payload());}return priorSave.apply(this,arguments);};
+        const oldOpen=openEditModal,oldMonth=openMonth10,oldCycle=cycleStatus;
+        const protectedId=id=>appData?.accounts.find(a=>String(a.id)===String(id))?.debtMovement31;
+        openEditModal=function(id){if(protectedId(id)){customDetail(protectedId(id).debt);return;}return oldOpen.apply(this,arguments);};
+        openMonth10=function(id){if(protectedId(id)){customDetail(protectedId(id).debt);return;}return oldMonth.apply(this,arguments);};
+        cycleStatus=function(id){if(protectedId(id)){customDetail(protectedId(id).debt);return;}return oldCycle.apply(this,arguments);};
+        openEditGainModal=function(who,m){const old=selectedMonthIdx;selectedMonthIdx=m;legacy(who);selectedMonthIdx=old;};
+        const oldStandard=renderStandardTable;renderStandardTable=function(){const result=oldStandard.apply(this,arguments);return result;};
+        paint();
+    }
+    window.ContasR31={
+        expense:id=>guarded(()=>expenseForm(dec(id))),expenseFields,
+        close:()=>$('r31-dialog').close(),mode:m=>{ui().mode=m;paint();},filter:s=>{ui().status=s;paint();},search:q=>{ui().query=q;$('r31-listbody').innerHTML=list();},removed:v=>{ui().removed=v;paint();},
+        add:()=>guarded(()=>{editable();if(ui().mode==='gains')gainForm();else expenseForm();}),gain:id=>guarded(()=>gainForm(id)),gainFields,
+        gainOptions:id=>guarded(()=>gainOptions(id)),removeGain:(id,k)=>guarded(()=>removeGain(id,k)),occurrence:id=>guarded(()=>occurrence(id)),legacy:w=>guarded(()=>legacy(w)),
+        status:(id,m)=>guarded(()=>statusForm(dec(id),m)),setStatus:(id,m,w,s)=>guarded(()=>setStatus(dec(id),m,w,s)),expenseOptions:(id,m)=>guarded(()=>expenseOptions(dec(id),m)),
+        monthExpense:(id,m)=>{selectedMonthIdx=m;$('month-select').value=m;$('r31-dialog').close();openMonth10(dec(id));},
+        expenseYear:id=>{dialog('Escolher mês',periods().map(m=>button(MONTHS[m],'ContasR31.status(\''+id+'\','+m+')')).join(' '),()=>true,'Fechar');},
+        shift:n=>{if(selectedMonthIdx==='all'){selectedYear=Number(selectedYear)+n;}else{const index=Number(selectedYear)*12+Number(selectedMonthIdx)+n;selectedYear=Math.floor(index/12);selectedMonthIdx=index%12;}$('month-select').value=selectedMonthIdx;$('year-select').value=selectedYear;renderApp();},
+        year:()=>{if(selectedMonthIdx==='all'){selectedMonthIdx=new Date().getMonth();renderApp();return;}dialog('Escolher mês — '+selectedYear,'<div class="r31-months">'+MONTHS.map((name,m)=>'<button type="button" onclick="ContasR31.chooseMonth('+m+')">'+name+'</button>').join('')+'</div><div style="margin-top:12px">'+button('Ver ano completo','ContasR31.chooseMonth(\'all\')')+'</div>',()=>true,'Fechar');},
+        chooseMonth:m=>{selectedMonthIdx=m;$('month-select').value=m;$('r31-dialog').close();renderApp();},
+        pickPeriod:()=>dialog('Escolher período',field('Mês e ano','r31-period-input',period(),'month','required min="1900-01" max="2200-12"'),()=>{const[y,m]=$('r31-period-input').value.split('-').map(Number);selectedYear=y;selectedMonthIdx=m-1;$('month-select').value=selectedMonthIdx;$('year-select').value=y;renderApp();}),
+        history:k=>guarded(()=>history(k)),audit:k=>guarded(()=>audit(k)),debtFilter:f=>{debtFilter=f;paint();},newDebt:()=>guarded(()=>{editable();newDebt();}),debt:id=>guarded(()=>customDetail(id)),debtPayment:id=>guarded(()=>debtPayment(id)),customExtra:id=>guarded(()=>customExtra(id)),toggleCustom:(id,event)=>guarded(()=>toggleCustom(id,event)),
+        refresh:paint,budget
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
+
+</script>
 </body>
 </html>
