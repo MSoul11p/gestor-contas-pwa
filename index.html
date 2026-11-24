@@ -2795,40 +2795,48 @@ function runLogoEffect(effect,element){
     const r=element.getBoundingClientRect(),origin={
         x:(r.left+r.width/2)/innerWidth,y:(r.top+r.height/2)/innerHeight
     };
-    if(effect==='pulse'){
-        element.animate([{
-            transform:'scale(1)'
-        },{
-            transform:'scale(1.2)'
-        },{
-            transform:'scale(1)'
-        }],{
-            duration:420,easing:'ease-out'
-        });
-        return
+    if(effect==='bounce'||effect==='pulse'){
+        if(typeof anime==='function'){
+            const clone=element.cloneNode(true);
+            clone.style.position='fixed';
+            clone.style.left=r.left+'px';
+            clone.style.top=r.top+'px';
+            clone.style.width=r.width+'px';
+            clone.style.height=r.height+'px';
+            clone.style.zIndex='99999';
+            clone.style.pointerEvents='none';
+            clone.style.borderRadius='16px';
+            clone.style.boxShadow='0 12px 30px rgba(0,0,0,0.35)';
+            document.body.appendChild(clone);
+            const w=window.innerWidth-60,h=window.innerHeight-80;
+            anime({
+                targets:clone,
+                keyframes:[
+                    {translateY:Math.min(220,h*0.3),translateX:(Math.random()>0.5?1:-1)*Math.min(110,w*0.3),scale:1.4,rotate:180,duration:380,easing:'easeOutQuad'},
+                    {translateY:Math.min(450,h*0.58),translateX:(Math.random()>0.5?1:-1)*Math.min(130,w*0.35),scale:0.9,rotate:360,duration:380,easing:'easeInQuad'},
+                    {translateY:Math.min(180,h*0.22),translateX:(Math.random()>0.5?1:-1)*Math.min(70,w*0.2),scale:1.25,rotate:540,duration:320,easing:'easeOutQuad'},
+                    {translateY:0,translateX:0,scale:1,rotate:720,duration:420,easing:'easeOutElastic(1, .6)'}
+                ],
+                complete:()=>{
+                    clone.remove();
+                    if(typeof triggerPartyEffect==='function')triggerPartyEffect();
+                }
+            });
+            return;
+        }else{
+            element.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:420,easing:'ease-out'});
+            return;
+        }
     }
     if(effect==='fountain'&&typeof window.moneyRain26==='function'){
         window.moneyRain26();
         return;
     }
     if(typeof confetti!=='function')return;
-    const base={
-        origin,zIndex:100,disableForReducedMotion:true
-    };
-    if(effect==='stars')confetti({
-        ...base,particleCount:45,spread:90,shapes:['star'],scalar:1.15,colors:['#fbbf24','#fef3c7','#f59e0b']
-    });
-    else if(effect==='fountain'){
-        confetti({
-            ...base,particleCount:40,spread:60,angle:65
-        });
-        confetti({
-            ...base,particleCount:40,spread:60,angle:115
-        })
-    }
-    else confetti({
-        ...base,particleCount:40,spread:60
-    });
+    const base={origin,zIndex:100,disableForReducedMotion:true};
+    if(effect==='stars')confetti({...base,particleCount:45,spread:90,shapes:['star'],scalar:1.15,colors:['#fbbf24','#fef3c7','#f59e0b']});
+    else if(effect==='fountain'){confetti({...base,particleCount:40,spread:60,angle:65});confetti({...base,particleCount:40,spread:60,angle:115});}
+    else confetti({...base,particleCount:40,spread:60});
 }
 triggerPartyEffect=function(){
     runLogoEffect((viewPrefs[currentTab]||{
@@ -3413,6 +3421,9 @@ playSoundForStatus=async function(status){
        </option>
        <option value="fountain">
         Chuva de dinheiro
+       </option>
+       <option value="bounce">
+        Saltar pela aplicação (Bouncy)
        </option>
        <option value="pulse">
         Pulso no logo
@@ -7844,7 +7855,18 @@ var ContasCore31 = (function () {
         const income=base+G.income(appData.extraGains30,selectedYear,selectedMonthIdx,currentTab);
         return {expense,income,balance:income-expense,...totals};
     }
-    function periodBar(){return '<div class="r31-period"><div><button aria-label="Período anterior" onclick="ContasR31.shift(-1)">‹</button><button onclick="ContasR31.pickPeriod()">'+periodLabel()+'</button><button aria-label="Período seguinte" onclick="ContasR31.shift(1)">›</button></div>'+button(selectedMonthIdx==='all'?'Mês':'Ano','ContasR31.year()')+'</div>';}
+    function periodBar(){
+        const isAnnual = selectedMonthIdx === 'all';
+        const label = isAnnual ? ('Ano ' + selectedYear) : (MONTHS[Number(selectedMonthIdx)] + ' ' + selectedYear);
+        return '<div class="r32-period-container" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;">' +
+            '<div class="r32-period-pill" style="display:inline-flex;align-items:center;background:var(--r31-card);border:1px solid var(--r31-line);border-radius:999px;padding:3px;box-shadow:0 4px 14px rgba(0,0,0,0.06);">' +
+                '<button type="button" aria-label="Anterior" style="background:none;border:0;border-radius:999px;min-height:36px;padding:6px 14px;cursor:pointer;font-weight:800;font-size:16px;color:var(--r31-ink);" onclick="ContasR31.shift(-1)">‹</button>' +
+                '<button type="button" style="background:none;border:0;border-radius:999px;min-height:36px;padding:6px 14px;cursor:pointer;font-weight:750;color:var(--r31-ink);font-size:13px;" onclick="ContasR31.pickPeriod()">' + esc(label) + '</button>' +
+                '<button type="button" aria-label="Seguinte" style="background:none;border:0;border-radius:999px;min-height:36px;padding:6px 14px;cursor:pointer;font-weight:800;font-size:16px;color:var(--r31-ink);" onclick="ContasR31.shift(1)">›</button>' +
+            '</div>' +
+            '<button type="button" class="r31-btn secondary" style="min-height:42px;padding:8px 18px;border-radius:999px;font-size:12px;font-weight:750;" onclick="ContasR31.toggleAnnual()">' + (isAnnual ? 'Vista mensal' : 'Ano completo') + '</button>' +
+        '</div>';
+    }
     function fold(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
     function groupColor(group){const n=Array.from(group).reduce((s,c)=>s+c.charCodeAt(0),0);return ['#dce9fa','#f5dfea','#e8e0fa','#dfefe2','#ffecd6','#dceff3'][n%6];}
     function accountRow(a,m){
@@ -7877,7 +7899,32 @@ var ContasCore31 = (function () {
     }
     function dashboard(){
         const b=budget(),s=ui();
-        return periodBar()+'<div class="r31-dashboard"><section><div class="r31-card r31-balance"><div class="r31-muted">Saldo previsto</div><div class="r31-big '+(b.balance<0?'r31-negative':'r31-positive')+'">'+(b.balance>0?'+ ':'')+euro(b.balance)+'</div><p class="r31-muted">Ganhos '+euro(b.income)+' · Despesas '+euro(b.expense)+'</p></div><div class="r31-stats">'+[['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']].map(([k,l])=>'<div class="r31-card r31-stat"><span class="r31-muted">'+l+'</span><strong style="color:'+(k==='PAID'?'var(--r31-accent)':k==='SEPARATED'?'#9c7610':'inherit')+'">'+euro(b[k])+'</strong></div>').join('')+'</div><p class="r31-muted" style="padding:12px 4px">Previsão do período, não saldo bancário. Semperfif fica separada das contas pessoais.</p></section><section class="r31-card r31-list"><div class="r31-listhead"><div class="r31-row r31-between"><div class="r31-segments"><button aria-pressed="'+(s.mode==='expenses')+'" onclick="ContasR31.mode(\'expenses\')">Despesas</button><button aria-pressed="'+(s.mode==='gains')+'" onclick="ContasR31.mode(\'gains\')">Ganhos</button></div>'+button('+ Adicionar','ContasR31.add()',false)+'</div><input class="r31-search" aria-label="Procurar movimento" placeholder="Procurar movimento…" value="'+esc(s.query)+'" oninput="ContasR31.search(this.value)">'+(s.mode==='expenses'?'<div class="r31-filters">'+[['ALL','Todas'],['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']].map(([k,l])=>'<button class="r31-filter" aria-pressed="'+(s.status===k)+'" onclick="ContasR31.filter(\''+k+'\')">'+l+'</button>').join('')+'</div>':'<label class="r31-muted"><input type="checkbox" '+(s.removed?'checked':'')+' onchange="ContasR31.removed(this.checked)"> Mostrar removidos</label>')+'</div><div id="r31-listbody">'+list()+'</div><p class="r31-hint">'+(s.mode==='expenses'?'Toca no valor para alterar o estado.':'Toca num ganho para editar uma ocorrência ou a série.')+'</p></section></div>';
+        const isAnnual = selectedMonthIdx === 'all';
+        let annualGridHTML = '';
+        if (isAnnual) {
+            annualGridHTML = '<div class="r32-annual-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;">' +
+                MONTHS.map((name, m) => {
+                    let mExp = 0, mInc = 0;
+                    appData.accounts.forEach(a => {
+                        if (!belongs(a, selectedYear, m)) return;
+                        const p = parts11(a, selectedYear, m);
+                        Object.entries(p).forEach(([w, v]) => {
+                            if (currentTab === 'm' && w !== 'M' || currentTab === 's' && w !== 'S') return;
+                            mExp += C.cents(Number(v));
+                        });
+                    });
+                    (currentTab === 'geral' ? ['m', 's'] : [currentTab]).forEach(w => mInc += G.legacy(appData, selectedYear, m, w));
+                    mInc += G.income(appData.extraGains30, selectedYear, m, currentTab);
+                    const mBal = mInc - mExp;
+                    return '<button type="button" class="r31-card" style="padding:12px;text-align:left;cursor:pointer;border-radius:16px;border:1px solid var(--r31-line);background:var(--r31-card);" onclick="ContasR31.chooseMonth(' + m + ')">' +
+                        '<div style="font-weight:800;font-size:13px;color:var(--r31-ink);">' + name + '</div>' +
+                        '<div style="font-size:11px;color:var(--r31-muted);margin-top:4px;">Saldo</div>' +
+                        '<div style="font-size:13px;font-weight:800;color:' + (mBal < 0 ? '#dc2626' : '#16a34a') + ';">' + (mBal > 0 ? '+ ' : '') + euro(mBal) + '</div>' +
+                    '</button>';
+                }).join('') +
+            '</div>';
+        }
+        return periodBar() + annualGridHTML + '<div class="r31-dashboard"><section><div class="r31-card r31-balance"><div class="r31-muted">' + (isAnnual ? 'Saldo previsto no ano' : 'Saldo previsto') + '</div><div class="r31-big '+(b.balance<0?'r31-negative':'r31-positive')+'">'+(b.balance>0?'+ ':'')+euro(b.balance)+'</div><p class="r31-muted">Ganhos '+euro(b.income)+' · Despesas '+euro(b.expense)+'</p></div><div class="r31-stats">'+[['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']].map(([k,l])=>'<div class="r31-card r31-stat"><span class="r31-muted">'+l+'</span><strong style="color:'+(k==='PAID'?'var(--r31-accent)':k==='SEPARATED'?'#d97706':'#dc2626')+'">'+euro(b[k])+'</strong></div>').join('')+'</div><p class="r31-muted" style="padding:10px 4px">'+(isAnnual ? 'Resumo consolidado do ano ' + selectedYear + '. Clica num mês para abrir o detalhe.' : 'Previsão do período, não saldo bancário. Semperfif separada das contas pessoais.')+'</p></section><section class="r31-card r31-list"><div class="r31-listhead"><div class="r31-row r31-between"><div class="r31-segments"><button type="button" class="'+(s.mode==='expenses'?'active':'')+'" onclick="ContasR31.mode(\'expenses\')">Despesas</button><button type="button" class="'+(s.mode==='gains'?'active':'')+'" onclick="ContasR31.mode(\'gains\')">Ganhos</button></div><button class="r31-btn" type="button" onclick="ContasR31.add()">+ Adicionar</button></div><input class="r31-search" aria-label="Procurar" placeholder="Procurar '+s.mode+'…" value="'+esc(s.query)+'" oninput="ContasR31.search(this.value)"><div class="r31-filters" '+(s.mode==='gains'?'hidden':'')+'>'+[['ALL','Todas'],['PENDING','Por pagar'],['SEPARATED','Separado'],['PAID','Pago']].map(([k,l])=>'<button type="button" class="r31-filter '+(s.status===k?'active':'')+'" onclick="ContasR31.filter(\''+k+'\')">'+l+'</button>').join('')+'</div></div><div id="r31-listbody">'+list()+'</div><p class="r31-hint">'+(s.mode==='expenses'?'Clica na cápsula com o valor e dia para alternar o estado diretamente.':'Usa os três pontos para editar.')+'</p></section></div>';
     }
 
     function expenseForm(id){
@@ -8000,6 +8047,17 @@ var ContasCore31 = (function () {
         $('r31-content').innerHTML=currentTab==='dividas'?debtsScreen():keys.includes(currentTab)?creditScreen(currentTab):dashboard();
         if(currentTab==='dividas'){$('current-tab-subtitle').textContent='Dívidas — resumo atual';$('header-icon-badge').textContent='€';}
         $('r31-calendar').hidden=!isCalendarOpen||!['geral','m','s'].includes(currentTab);
+        const drawer=$('calendar-drawer');
+        if(drawer){
+            if(isCalendarOpen&&['geral','m','s'].includes(currentTab)){
+                drawer.classList.remove('hidden');
+                drawer.style.display='block';
+                if(typeof renderCalendarGrid==='function')renderCalendarGrid();
+            }else{
+                drawer.classList.add('hidden');
+                drawer.style.display='none';
+            }
+        }
     }
     function boot(){
         if(booted)return;booted=true;
@@ -8028,10 +8086,60 @@ var ContasCore31 = (function () {
         status:(id,m)=>guarded(()=>statusForm(dec(id),m)),setStatus:(id,m,w,s)=>guarded(()=>setStatus(dec(id),m,w,s)),expenseOptions:(id,m)=>guarded(()=>expenseOptions(dec(id),m)),
         monthExpense:(id,m)=>{selectedMonthIdx=m;$('month-select').value=m;$('r31-dialog').close();openMonth10(dec(id));},
         expenseYear:id=>{dialog('Escolher mês',periods().map(m=>button(MONTHS[m],'ContasR31.status(\''+id+'\','+m+')')).join(' '),()=>true,'Fechar');},
-        shift:n=>{if(selectedMonthIdx==='all'){selectedYear=Number(selectedYear)+n;}else{const index=Number(selectedYear)*12+Number(selectedMonthIdx)+n;selectedYear=Math.floor(index/12);selectedMonthIdx=index%12;}$('month-select').value=selectedMonthIdx;$('year-select').value=selectedYear;renderApp();},
-        year:()=>{if(selectedMonthIdx==='all'){selectedMonthIdx=new Date().getMonth();renderApp();return;}dialog('Escolher mês — '+selectedYear,'<div class="r31-months">'+MONTHS.map((name,m)=>'<button type="button" onclick="ContasR31.chooseMonth('+m+')">'+name+'</button>').join('')+'</div><div style="margin-top:12px">'+button('Ver ano completo','ContasR31.chooseMonth(\'all\')')+'</div>',()=>true,'Fechar');},
-        chooseMonth:m=>{selectedMonthIdx=m;$('month-select').value=m;$('r31-dialog').close();renderApp();},
-        pickPeriod:()=>dialog('Escolher período',field('Mês e ano','r31-period-input',period(),'month','required min="1900-01" max="2200-12"'),()=>{const[y,m]=$('r31-period-input').value.split('-').map(Number);selectedYear=y;selectedMonthIdx=m-1;$('month-select').value=selectedMonthIdx;$('year-select').value=y;renderApp();}),
+        shift:n=>{
+            if(selectedMonthIdx==='all'){
+                selectedYear=Number(selectedYear)+n;
+            }else{
+                const totalM=Number(selectedYear)*12+Number(selectedMonthIdx)+n;
+                selectedYear=Math.floor(totalM/12);
+                selectedMonthIdx=totalM%12;
+            }
+            if($('month-select'))$('month-select').value=selectedMonthIdx;
+            if($('year-select'))$('year-select').value=selectedYear;
+            renderApp();
+        },
+        toggleAnnual:()=>{
+            if(selectedMonthIdx==='all'){
+                selectedMonthIdx=new Date().getMonth();
+            }else{
+                selectedMonthIdx='all';
+            }
+            if($('month-select'))$('month-select').value=selectedMonthIdx;
+            renderApp();
+        },
+        year:()=>{
+            ContasR31.pickPeriod();
+        },
+        chooseMonth:m=>{
+            selectedMonthIdx=m;
+            if($('month-select'))$('month-select').value=m;
+            const d=$('r31-dialog');if(d&&d.open)d.close();
+            renderApp();
+        },
+        setYear:y=>{
+            selectedYear=Number(y);
+            if($('year-select'))$('year-select').value=selectedYear;
+            ContasR31.pickPeriod();
+        },
+        pickPeriod:()=>{
+            const d=$('r31-dialog');if(d.open)d.close();
+            const currY=Number(selectedYear);
+            const years=[currY-1,currY,currY+1,currY+2];
+            const htmlYears='<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;">' +
+                '<button type="button" class="r31-btn secondary" style="min-height:34px;padding:4px 12px;font-size:14px;" onclick="ContasR31.setYear('+(currY-1)+')">‹</button>' +
+                '<strong style="font-size:16px;color:var(--r31-ink);">'+currY+'</strong>' +
+                '<button type="button" class="r31-btn secondary" style="min-height:34px;padding:4px 12px;font-size:14px;" onclick="ContasR31.setYear('+(currY+1)+')">›</button>' +
+            '</div>';
+            const htmlMonths='<div class="r31-months" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">' +
+                MONTHS.map((name,m)=>'<button type="button" class="r31-btn '+(selectedMonthIdx===m?'':'secondary')+'" style="min-height:42px;padding:8px 4px;font-size:12px;" onclick="ContasR31.chooseMonth('+m+')">'+name+'</button>').join('') +
+            '</div>' +
+            '<div style="margin-top:14px;text-align:center;">' +
+                '<button type="button" class="r31-btn secondary" style="width:100%;min-height:42px;" onclick="ContasR31.chooseMonth(\'all\')">Ver ano '+currY+' completo</button>' +
+            '</div>';
+            d.innerHTML='<div style="padding:18px;"><div class="r31-row r31-between" style="margin-bottom:14px;"><h2 id="r31-dialog-title" style="font-size:16px;font-weight:750;">Escolher período</h2><button class="r31-close" type="button" aria-label="Fechar" onclick="ContasR31.close()">×</button></div>'+htmlYears+htmlMonths+'</div>';
+            d.showModal();
+        },
+        'month','required min="1900-01" max="2200-12"'),()=>{const[y,m]=$('r31-period-input').value.split('-').map(Number);selectedYear=y;selectedMonthIdx=m-1;$('month-select').value=selectedMonthIdx;$('year-select').value=y;renderApp();}),
         history:k=>guarded(()=>history(k)),audit:k=>guarded(()=>audit(k)),debtFilter:f=>{debtFilter=f;paint();},newDebt:()=>guarded(()=>{editable();newDebt();}),debt:id=>guarded(()=>customDetail(id)),debtPayment:id=>guarded(()=>debtPayment(id)),customExtra:id=>guarded(()=>customExtra(id)),toggleCustom:(id,event)=>guarded(()=>toggleCustom(id,event)),
         refresh:paint,budget
     };
