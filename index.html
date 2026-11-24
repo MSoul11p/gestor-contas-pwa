@@ -6842,5 +6842,793 @@ html.dark .r27-danger button {
         else boot();
     })();
   </script>
- </body>
+ 
+<!-- INÍCIO DA EXTENSÃO CONSOLIDADA R30: código-base anterior preservado. -->
+<style id="revision30-layout">
+
+/* Revisão 30 — estilos isolados; não substitui as regras das revisões anteriores. */
+.r30-panel, #r30-dialog { color:var(--ink); background:var(--surface); border:1px solid #94a3b866; border-radius:24px; }
+.r30-panel { margin:16px 0; padding:clamp(14px,3vw,24px); }
+.r30-panel h3 { font-size:1.1rem; font-weight:800; margin-bottom:10px; }
+.r30-panel p, #r30-dialog p { font-size:.82rem; line-height:1.6; overflow-wrap:anywhere; }
+.r30-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0; }
+.r30-actions button, .r30-panel button, #r30-dialog button { border:1px solid #94a3b888; background:var(--surface); color:var(--ink); border-radius:999px; padding:10px 15px; min-height:42px; font-weight:700; }
+.r30-actions button:hover, #r30-dialog button:hover { border-color:#8b5cf6; }
+.r30-primary { background:#6d28d9!important; color:white!important; border-color:#7c3aed!important; }
+.r30-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:12px; }
+.r30-stat { border:1px solid #94a3b855; border-radius:20px; padding:15px; background:color-mix(in srgb,var(--surface) 92%,#8b5cf6); }
+.r30-stat span { display:block; font-size:.76rem; margin-bottom:6px; }
+.r30-stat strong { font-size:1.2rem; overflow-wrap:anywhere; }
+.r30-entry { border:1px solid #94a3b855; border-radius:18px; padding:12px 15px; margin-top:10px; }
+.r30-entry[data-void=true] { opacity:.75; border-style:dashed; }
+.r30-warning { border-left:4px solid #d97706; padding:8px 12px; background:color-mix(in srgb,var(--surface) 88%,#f59e0b); border-radius:10px; }
+#r30-dialog { width:min(94vw,620px); max-height:88dvh; padding:0; box-shadow:0 25px 100px #0008; }
+#r30-dialog::backdrop { background:#0008; backdrop-filter:blur(5px); }
+#r30-dialog form { padding:22px; }
+#r30-dialog header { display:flex; align-items:center; justify-content:space-between; gap:10px; position:sticky; top:0; background:var(--surface); padding-bottom:12px; z-index:2; }
+#r30-dialog h2 { font-size:1.15rem; font-weight:800; }
+#r30-dialog label { display:block; margin-top:12px; font-size:.83rem; font-weight:700; }
+#r30-dialog input:not([type=checkbox]), #r30-dialog select, #r30-dialog textarea { display:block; width:100%; margin-top:6px; padding:11px; border:1px solid #94a3b899; border-radius:13px; color:var(--ink)!important; background:var(--surface)!important; }
+#r30-dialog textarea { min-height:75px; }
+#r30-dialog input[type=checkbox] { margin-right:8px; }
+#r30-error { color:#dc2626; min-height:1.5em; margin:12px 0; }
+html.dark #r30-error { color:#fda4af; }
+#r30-dialog .r30-close { min-width:46px; font-size:20px; padding:6px; }
+#r30-feedback { position:fixed; right:max(16px,env(safe-area-inset-right)); bottom:calc(var(--r28-dock-height,70px) + 26px); z-index:100; max-width:min(90vw,390px); padding:13px 18px; border:1px solid #94a3b8; border-radius:18px; background:var(--surface); color:var(--ink); box-shadow:0 8px 35px #0003; pointer-events:none; }
+#r30-feedback[hidden], .r30-panel[hidden], #r30-dialog [hidden] { display:none!important; }
+#r30-save-emoji { display:inline-block; margin-right:7px; }
+#r30-progress { height:18px; overflow:hidden; border-radius:999px; background:#94a3b844; margin:14px 0; }
+#r30-progress > div { height:100%; border-radius:999px; background:repeating-linear-gradient(115deg,#3b82f6 0 17px,#ec4899 17px 34px); transition:width .7s cubic-bezier(.2,.85,.25,1.2); }
+#r30-progress-label { font-size:.8rem; }
+html[data-motion30=full] button { transition:transform .18s cubic-bezier(.25,1.7,.4,1),background-color .15s; }
+html[data-motion30=full] button:active { transform:scale(.96); }
+html[data-motion30=off] *, html[data-motion30=off] *::before, html[data-motion30=off] *::after { animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important; }
+html[data-motion30=off] .falling-money, html[data-motion30=reduced] .falling-money { display:none!important; }
+html[data-motion30=off] .cartoon-bounce, html[data-motion30=reduced] .cartoon-bounce { transform:none!important; }
+html[data-motion30=reduced] #r30-progress > div { transition:width .18s linear; }
+body.theme-credito_ab #credit-current-month-box { border:2px solid transparent!important; background:linear-gradient(var(--surface),var(--surface)) padding-box,linear-gradient(110deg,#3b82f6,#ec4899) border-box!important; }
+@media(prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior:auto!important; animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; } }
+
+</style>
+<script id="revision30-core">
+/**
+ * CONTAS MS — revisão 30: núcleo financeiro partilhado.
+ * Funções puras: não escrevem dados, não usam rede e calculam dinheiro em cêntimos.
+ * O mesmo núcleo é incluído no HTML e no Apps Script para evitar divergências.
+ */
+var ContasCore30 = (function () {
+    'use strict';
+    const keys = ['casa', 'carro', 'credito_ab'];
+    const owners = ['M', 'S', 'BOTH', 'SEMPERFIF'];
+    function assert(ok, message) { if (!ok) throw new Error(message); }
+    function cents(value) {
+        assert(typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1000000000,
+            'Montante inválido ou acima do limite técnico.');
+        assert(Math.abs(value * 100 - Math.round(value * 100)) < 0.0001, 'Usa no máximo duas casas decimais.');
+        return Math.round(value * 100);
+    }
+    function date(value) {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const [y, m, d] = value.split('-').map(Number);
+        if (y < 1900 || y > 2200) return false;
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+    }
+    function index(value) { const [y, m] = value.split('-').map(Number); return y * 12 + m - 1; }
+    function due(month, day) {
+        const y = Math.floor(month / 12), m = month % 12;
+        return y + '-' + String(m + 1).padStart(2, '0') + '-' +
+            String(Math.min(day, new Date(Date.UTC(y, m + 1, 0)).getUTCDate())).padStart(2, '0');
+    }
+    function allocated(amount, owner) {
+        const n = cents(amount);
+        assert(owners.includes(owner), 'Atribuição inválida.');
+        if (owner === 'BOTH') return { M: Math.floor(n / 2), S: n - Math.floor(n / 2) };
+        return { [owner]: n };
+    }
+    function income(records, year, month, tab) {
+        return (records || []).reduce(function (sum, record) {
+            if (record.deleted || Number(record.date.slice(0, 4)) !== Number(year) ||
+                (month !== 'all' && Number(record.date.slice(5, 7)) - 1 !== Number(month))) return sum;
+            const parts = allocated(record.amount, record.owner);
+            return sum + (tab === 'geral' ? Object.values(parts).reduce((a, b) => a + b, 0) :
+                parts[tab === 'semperfif' ? 'SEMPERFIF' : tab.toUpperCase()] || 0);
+        }, 0);
+    }
+    function activeEvents(tools, key) {
+        return (tools?.events || []).filter(e => e.credit === key && !e.void);
+    }
+    function paid(rows, mode, start) {
+        return rows.filter(r => r.status === 'PAID' && date(r.date) && (!start || index(r.date) >= index(start)))
+            .reduce((n, r) => n + cents(Number(mode === 'fixed' ? r.installment || 0 : r.amort ?? r.amortization ?? 0)), 0);
+    }
+    function extras(tools, key) {
+        return activeEvents(tools, key).filter(e => e.type === 'extra').reduce((n, e) => n + cents(e.capital), 0);
+    }
+    function latestBalance(tools, key) {
+        return activeEvents(tools, key).filter(e => e.type === 'balance').slice(-1)[0] || null;
+    }
+    function project(rows, tools, key, today) {
+        assert(date(today), 'Data de referência inválida.');
+        const config = tools?.configs?.[key];
+        if (!config) return { configured: false };
+        const regular = paid(rows, config.mode, config.mode === 'fixed' ? config.start : null);
+        const extra = extras(tools, key), anchor = latestBalance(tools, key);
+        let original, raw;
+        if (config.mode === 'fixed') {
+            const count = index(config.end) - index(config.start) + 1;
+            original = count * cents(config.monthly);
+            raw = anchor ? cents(anchor.amount) - (regular - anchor.paidBase) - (extra - anchor.extraBase) :
+                original - regular - extra;
+        } else {
+            original = cents(config.balance);
+            raw = anchor ? cents(anchor.amount) - (regular - anchor.paidBase) - (extra - anchor.extraBase) :
+                original - (regular - config.paidBase) - (extra - config.extraBase);
+        }
+        const remaining = Math.max(0, raw), monthly = cents(config.monthly);
+        const rate = config.mode === 'fixed' ? monthly : (config.capitalMonthly ? cents(config.capitalMonthly) : 0);
+        const remainingMonths = rate > 0 ? Math.ceil(remaining / rate) : (remaining === 0 ? 0 : null);
+        const paymentDay = Number(config.day);
+        // Número de vencimentos estritamente anteriores a hoje; hoje ainda não é atraso.
+        let nextMonth = config.mode === 'fixed' ? index(config.start) : index(today);
+        if (config.mode === 'fixed') {
+            nextMonth = Math.max(nextMonth, index(today));
+        }
+        if (due(nextMonth, paymentDay) < today) nextMonth++;
+        const estimate = remainingMonths ? due(nextMonth + remainingMonths - 1, paymentDay) : null;
+        const shift = estimate && config.end ? index(estimate) - index(config.end) : null;
+        const missingCapital = config.mode === 'capital' && rows.some(r => r.status === 'PAID' &&
+            cents(Number(r.installment || 0)) > 0 && r.amort === undefined && r.amortization === undefined);
+        return {
+            configured: true, mode: config.mode, remaining, original, regular, extra,
+            extraCash: activeEvents(tools, key).filter(e => e.type === 'extra').reduce((n, e) => n + cents(e.total), 0),
+            regularCash: paid(rows, 'fixed', config.mode === 'fixed' ? config.start : null),
+            remainingMonths, estimate, shift, originalEnd: config.end || null,
+            overpaid: Math.max(0, -raw), anchor: anchor?.id || null, missingCapital
+        };
+    }
+    function validConfig(config) {
+        assert(config && ['fixed', 'capital'].includes(config.mode), 'Modelo de crédito inválido.');
+        assert(cents(config.monthly) > 0, 'A mensalidade tem de ser superior a zero.');
+        assert(Number.isInteger(config.day) && config.day >= 1 && config.day <= 31, 'Dia de vencimento inválido.');
+        if (config.mode === 'fixed') {
+            assert(date(config.start) && date(config.end) && config.end >= config.start, 'Datas do plano inválidas.');
+            assert(Number(config.start.slice(8)) === config.day, 'O dia tem de corresponder à primeira prestação.');
+        } else {
+            cents(config.balance);
+            if (config.capitalMonthly !== undefined) cents(config.capitalMonthly);
+            assert(date(config.referenceDate), 'Data do saldo de referência inválida.');
+            assert(Number.isSafeInteger(config.paidBase) && config.paidBase >= 0 &&
+                Number.isSafeInteger(config.extraBase) && config.extraBase >= 0, 'Referências do saldo inválidas.');
+            assert(!config.end || date(config.end), 'Data final original inválida.');
+        }
+    }
+    function validate(app, credits) {
+        const gains = app.extraGains30;
+        const ids = new Set();
+        function unique(id) {
+            assert(typeof id === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(id) && !ids.has(id), 'Identificador inválido ou duplicado.');
+            ids.add(id);
+        }
+        if (gains !== undefined) {
+            assert(Array.isArray(gains), 'Lista de ganhos inválida.');
+            gains.forEach(g => {
+                unique(g.id); assert(date(g.date), 'Data de ganho inválida.');
+                assert(typeof g.description === 'string' && g.description.trim().length > 0 && g.description.length <= 180,
+                    'Descrição de ganho inválida.');
+                assert(cents(g.amount) > 0, 'O ganho tem de ser superior a zero.');
+                allocated(g.amount, g.owner);
+                assert(typeof g.deleted === 'boolean', 'Estado do ganho inválido.');
+            });
+        }
+        const tools = app.creditTools30;
+        if (tools === undefined) return true;
+        assert(tools && tools.schema === 1 && tools.configs && !Array.isArray(tools.configs) && Array.isArray(tools.events),
+            'Estrutura de créditos inválida.');
+        Object.entries(tools.configs).forEach(([key, config]) => {
+            assert(keys.includes(key), 'Crédito desconhecido.'); validConfig(config);
+        });
+        tools.events.forEach(e => {
+            unique(e.id);
+            assert(keys.includes(e.credit) && ['extra', 'balance', 'history'].includes(e.type) && date(e.date), 'Movimento de crédito inválido.');
+            assert(typeof e.void === 'boolean' && typeof e.description === 'string' && e.description.length <= 500,
+                'Descrição ou estado de movimento inválido.');
+            if (e.type === 'extra') {
+                assert(e.description.trim().length > 0, 'Indica uma descrição do pagamento.');
+                const total = cents(e.total), capital = cents(e.capital), charges = cents(e.charges);
+                assert(total > 0 && capital <= total && total === capital + charges, 'Total = capital + encargos.');
+                allocated(e.total, e.owner);
+                const linked = app.accounts.filter(a => a.creditMovement30?.id === e.id);
+                assert(linked.length === 1 && String(linked[0].id) === e.accountId, 'Despesa ligada ausente ou duplicada.');
+                const a = linked[0], parts = allocated(e.total, e.owner), ym = e.date.slice(0, 7);
+                assert(cents(Number(a.amount)) === total && a.payer === e.owner && a.schedule?.kind === 'once' &&
+                    a.schedule.start === ym && a.schedule.end === ym && a.day === Number(e.date.slice(8)) &&
+                    a.creditMovement30.void === e.void, 'Despesa ligada incoerente com o movimento.');
+                const period=Number(e.date.slice(0,4))+':'+(Number(e.date.slice(5,7))-1);
+                const override=a.monthlyValues?.[period];
+                const shares=override?.shares;
+                assert(!override || override.day === undefined || override.day === a.day, 'Dia da despesa ligada incoerente.');
+                assert(a.scope === 'general', 'Âmbito da despesa ligada incoerente.');
+                assert(!a.excludedYears27?.[e.date.slice(0,4)] && !a.excludedMonths27?.[period], 'Anula pagamentos extra na aba do crédito, não por exclusão da despesa.');
+                assert(Object.keys(parts).every(w => a.personStates?.[period]?.[w] === 'PAID'), 'Os pagamentos extra representam saídas já pagas.');
+                const actual = shares || (a.payer === 'BOTH' ? { M:a.amountM, S:a.amountS } : { [a.payer]:a.amount });
+                assert(Object.keys(actual).length === Object.keys(parts).length && Object.entries(parts).every(([who, n]) =>
+                    cents(Number(actual[who])) === n), 'Repartição da despesa ligada incoerente.');
+            } else if (e.type === 'balance') {
+                cents(e.amount);
+                assert(Number.isSafeInteger(e.paidBase) && e.paidBase >= 0 && Number.isSafeInteger(e.extraBase) && e.extraBase >= 0,
+                    'Referências do acerto inválidas.');
+            } else {
+                assert(date(e.targetDate) && e.before && e.after && e.after.row && date(e.after.row.date), 'Correção histórica inválida.');
+                assert(['PENDING','SEPARATED','PAID'].includes(e.after.row.status), 'Estado de prestação inválido.');
+                cents(Number(e.after.row.installment));
+                if (e.after.row.amort !== undefined) cents(Number(e.after.row.amort));
+            }
+        });
+        app.accounts.filter(a => a.creditMovement30).forEach(a => {
+            assert(tools.events.some(e => e.type === 'extra' && e.id === a.creditMovement30.id), 'Despesa de crédito órfã.');
+        });
+        return true;
+    }
+    return { assert, cents, date, index, due, allocated, income, paid, extras, latestBalance, project, validate, validConfig };
+})();
+
+</script>
+<script id="revision30-ui">
+
+/**
+ * Revisão 30 — integração aditiva.
+ * Mantém o HTML e os scripts recebidos. As extensões só são criadas ao gravar
+ * uma operação explícita. Abrir uma aba ou calcular uma previsão não migra dinheiro.
+ */
+(function () {
+    'use strict';
+    const C = ContasCore30, $ = id => document.getElementById(id);
+    const tabs = ['casa', 'carro', 'credito_ab'];
+    const names = { casa:'Casa', carro:'Carro', credito_ab:'Crédito AB' };
+    const linkedIds = { casa:'1', carro:'11', credito_ab:'16' };
+    const clone = value => JSON.parse(JSON.stringify(value));
+    const euro = n => (n / 100).toLocaleString('pt-PT', {style:'currency',currency:'EUR'});
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fold = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const stamp = () => new Date().toISOString();
+    const today = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+    const uid = prefix => prefix + '_' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
+    let booted = false, closeFocus, feedbackTimer, observer, partyArmed = false;
+    let prefs = { motion:'full', sound:false };
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem('contas_ms_effects30') || '{}') }; } catch (_) {}
+    function effectiveMotion() { return reduced.matches ? 'off' : (['full','reduced','off'].includes(prefs.motion) ? prefs.motion : 'full'); }
+    function applyEffects() {
+        document.documentElement.dataset.motion30 = effectiveMotion();
+        if ($('r30-motion')) $('r30-motion').value = prefs.motion;
+        if ($('r30-sound')) $('r30-sound').checked = prefs.sound === true;
+        if (effectiveMotion() !== 'full' && typeof confetti === 'function' && confetti.reset) confetti.reset();
+    }
+    applyEffects();
+    function rows(key) { return key === 'casa' ? CREDIT_CASA_DATA : key === 'carro' ? CREDIT_CARRO_DATA : CREDIT_AB_DATA; }
+    function creditPayload() { return { casa:CREDIT_CASA_DATA, carro:CREDIT_CARRO_DATA, credito_ab:CREDIT_AB_DATA }; }
+    function tools(create) {
+        if (!appData.creditTools30 && create) appData.creditTools30 = { schema:1, configs:{}, events:[] };
+        return appData.creditTools30 || { schema:1, configs:{}, events:[] };
+    }
+    function requireEdit() {
+        const state = $('sync-status')?.dataset.state;
+        if (!appData || !['loaded','saved','pending','saving'].includes(state)) throw Error('Carrega os dados e resolve primeiro qualquer erro de sincronização.');
+    }
+    function notify(text, saved) {
+        if (!$('r30-feedback')) return;
+        clearTimeout(feedbackTimer);
+        $('r30-feedback-text').textContent = text;
+        $('r30-feedback').hidden = false;
+        const emoji = $('r30-save-emoji');
+        emoji.textContent = saved ? '💾' : '↗';
+        if (saved && effectiveMotion() === 'full' && emoji.animate) {
+            emoji.animate([{transform:'translateX(-12px) rotate(-10deg)'},{transform:'translateX(10px) rotate(10deg)'},{transform:'translateX(0) rotate(0)'}],{duration:650,easing:'cubic-bezier(.2,.9,.3,1.3)'});
+        }
+        feedbackTimer = setTimeout(() => { $('r30-feedback').hidden = true; }, saved ? 3600 : 4600);
+    }
+    // Transação local: se a validação falha, repõe todos os objetos antes de chamar a sincronização.
+    function commit(change) {
+        requireEdit();
+        const backup = clone({ appData, credits:creditPayload() });
+        try {
+            change();
+            C.validate(appData, creditPayload());
+        } catch (error) {
+            appData = backup.appData;
+            tabs.forEach(key => rows(key).splice(0,rows(key).length,...backup.credits[key]));
+            throw error;
+        }
+        saveDataToLocalStorage();
+        renderApp();
+        notify('Alteração registada; aguarda a confirmação do Sheets.', false);
+    }
+    function ownerSelect(value) {
+        return ['M','S','BOTH','SEMPERFIF'].map(w => '<option value="'+w+'"'+(value===w?' selected':'')+'>'+({BOTH:'M + S — 50/50',SEMPERFIF:'Semperfif'}[w]||w)+'</option>').join('');
+    }
+    function moneyField(id,label,value,positive) {
+        return '<label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" step="0.01" min="'+(positive?'0.01':'0')+'" required value="'+esc(value ?? '')+'">';
+    }
+    function num(id) {
+        const raw = $(id).value.trim();
+        if (!raw) throw Error('Preenche todos os montantes obrigatórios.');
+        const value = Number(raw); C.cents(value); return value;
+    }
+    function modal(title, content, submit, label) {
+        requireEdit();
+        closeFocus = document.activeElement;
+        $('r30-dialog-title').textContent = title;
+        $('r30-fields').innerHTML = content;
+        $('r30-submit').textContent = label || 'Confirmar alteração';
+        $('r30-error').textContent = '';
+        $('r30-form').onsubmit = event => {
+            event.preventDefault();
+            try { submit(); $('r30-dialog').close(); }
+            catch (error) { $('r30-error').textContent = error.message; }
+        };
+        $('r30-dialog').showModal();
+        $('r30-fields').querySelector('input,select,textarea')?.focus();
+    }
+    function safe(action) { return function () { try { action.apply(this,arguments); } catch (error) { notify(error.message,false); } }; }
+    function button(label, action, primary) {
+        const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+        if (primary) b.className = 'r30-primary'; b.onclick = safe(action); return b;
+    }
+    function selectedDate() {
+        const m = selectedMonthIdx === 'all' ? new Date().getMonth() : Number(selectedMonthIdx);
+        const y = Number(selectedYear), d = Math.min(new Date().getDate(), new Date(y,m+1,0).getDate());
+        return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    }
+    function gainForm(record) {
+        const previous = record ? clone(record) : null;
+        const value = record || { description:'',amount:'',date:selectedDate(),owner:currentTab==='m'?'M':currentTab==='s'?'S':currentTab==='semperfif'?'SEMPERFIF':'BOTH' };
+        modal(record ? 'Editar ganho adicional' : 'Registar ganho adicional',
+            '<p>Conta apenas no mês e ano da data indicada. Não altera os ordenados do modelo anterior.</p>'+
+            '<label for="r30-description">Descrição</label><input id="r30-description" maxlength="180" required value="'+esc(value.description)+'">'+
+            moneyField('r30-amount','Valor recebido (€)',value.amount,true)+
+            '<label for="r30-date">Data</label><input id="r30-date" type="date" required value="'+esc(value.date)+'">'+
+            '<label for="r30-owner">Atribuição</label><select id="r30-owner">'+ownerSelect(value.owner)+'</select>', function () {
+                const next = { id:record?.id || uid('gain'), description:$('r30-description').value.trim(), amount:num('r30-amount'),
+                    date:$('r30-date').value, owner:$('r30-owner').value, deleted:false, updatedAt:stamp(), createdAt:record?.createdAt || stamp() };
+                commit(() => {
+                    appData.extraGains30 ||= [];
+                    if (record) {
+                        const target = appData.extraGains30.find(g => g.id === record.id);
+                        C.assert(JSON.stringify(target) === JSON.stringify(previous),'O registo mudou. Fecha e abre novamente.');
+                        next.revisions = [...(target.revisions || []),{at:stamp(),before:{description:target.description,amount:target.amount,date:target.date,owner:target.owner,deleted:target.deleted}}];
+                        Object.assign(target,next);
+                    } else appData.extraGains30.push(next);
+                });
+            }, record ? 'Guardar edição' : 'Registar ganho');
+    }
+    function toggleGain(id) {
+        const record = appData.extraGains30.find(g => g.id === id);
+        if (!confirm((record.deleted ? 'Restaurar' : 'Remover')+' o ganho “'+record.description+'”? O histórico é preservado.')) return;
+        commit(() => {
+            record.revisions ||= []; record.revisions.push({at:stamp(),before:{deleted:record.deleted}});
+            record.deleted = !record.deleted; record.updatedAt = stamp();
+        });
+    }
+    function budget() {
+        if (!appData || tabs.includes(currentTab)) return;
+        const months = selectedMonthIdx === 'all' ? Array.from({length:12},(_,i)=>i) : [Number(selectedMonthIdx)];
+        const who = currentTab === 'm' ? 'M' : currentTab === 's' ? 'S' : null;
+        let expense = 0, base = 0;
+        months.forEach(month => {
+            appData.accounts.forEach(a => {
+                if (!occurs11(a,selectedYear,month)) return;
+                const belongs = currentTab === 'geral' ? a.scope !== 'semperfif' : currentTab === 'semperfif' ? a.payer === 'SEMPERFIF' :
+                    Number(parts11(a,selectedYear,month)[who] || 0) > 0;
+                if (!belongs) return;
+                Object.entries(parts11(a,selectedYear,month)).forEach(([person,n]) => { if (!who || person === who) expense += Math.round(Number(n || 0)*100); });
+            });
+            if (Number(selectedYear) <= 2027) {
+                const people = currentTab === 'geral' ? ['m','s','semperfif'] : [currentTab];
+                people.forEach(key => { base += Math.round(Number(appData.ganhos[key]?.[month] || 0)*100); });
+            }
+        });
+        const extra = C.income(appData.extraGains30,selectedYear,selectedMonthIdx,currentTab), balance = base+extra-expense;
+        $('kpi-total').textContent = (balance>0?'+ ':'')+euro(balance);
+        $('kpi-total').dataset.negative = String(balance<0);
+        $('kpi-sub-total').textContent = 'Ganhos '+euro(base+extra)+' · Despesas '+euro(expense);
+        $('kpi-sub-total').title = 'Ganhos adicionais: '+euro(extra)+'. Previsão do orçamento, não saldo bancário.';
+    }
+    function paintGains() {
+        if (!booted || !appData) return;
+        const isCredit = tabs.includes(currentTab), panel = $('r30-gains');
+        panel.hidden = isCredit || $('r28-gains')?.getAttribute('aria-pressed') !== 'true';
+        if (panel.hidden) return;
+        const query = fold($('r28-search')?.value), showRemoved = $('r30-show-removed').checked;
+        const list = $('r30-gain-list'); list.replaceChildren();
+        const visible = (appData.extraGains30 || []).filter(g =>
+            Number(g.date.slice(0,4)) === Number(selectedYear) &&
+            (selectedMonthIdx === 'all' || Number(g.date.slice(5,7))-1 === Number(selectedMonthIdx)) &&
+            (showRemoved || !g.deleted) && (!query || fold(g.description).includes(query)) &&
+            (currentTab==='geral' || Object.hasOwn(C.allocated(g.amount,g.owner),currentTab==='semperfif'?'SEMPERFIF':currentTab.toUpperCase()))
+        ).slice().sort((a,b) => b.date.localeCompare(a.date));
+        visible.forEach(g => {
+            const entry = document.createElement('div'); entry.className='r30-entry'; entry.dataset.void=String(g.deleted);
+            const text = document.createElement('p');
+            text.textContent = g.description+' · '+euro(C.cents(g.amount))+' · '+g.date+' · '+g.owner+(g.deleted?' · Removido':'');
+            entry.append(text);
+            const actions = document.createElement('div'); actions.className='r30-actions';
+            if (!g.deleted) actions.append(button('Editar',()=>gainForm(g)));
+            actions.append(button(g.deleted?'Restaurar':'Remover',()=>toggleGain(g.id))); entry.append(actions); list.append(entry);
+        });
+        if (!visible.length) list.textContent='Sem ganhos adicionais para este período, atribuição e pesquisa.';
+        $('r30-gain-total').textContent='Adicionais no período: '+euro(C.income(appData.extraGains30,selectedYear,selectedMonthIdx,currentTab));
+        if (visible.some(g=>!g.deleted)) $('r28-empty').hidden=true;
+        $('r28-model-note').textContent='Os ganhos antigos mantêm o modelo comum a 2026/2027. Os adicionais têm data e ano próprios; M + S reparte o valor sem perder cêntimos.';
+    }
+    function linked(key) {
+        const id = tools().configs[key]?.accountId || linkedIds[key];
+        return appData.accounts.find(a=>String(a.id)===String(id));
+    }
+    function configForm(key) {
+        const current = tools().configs[key], list = rows(key).filter(r=>r.status!=='BEGINNING' && C.date(r.date)).slice().sort((a,b)=>a.date.localeCompare(b.date));
+        const last = [...list].reverse().find(r=>Number(r.installment)>0);
+        const amort = [...list].reverse().find(r=>Number(r.amort ?? r.amortization)>0);
+        const mode = key === 'carro' ? 'fixed' : 'capital';
+        const value = current || { mode, monthly:last?.installment || linked(key)?.amount || '', day:Number((list[0]?.date || today()).slice(8)),
+            start:list[0]?.date || '', end:list.at(-1)?.date || '', balance:'', capitalMonthly:amort?.amort ?? amort?.amortization ?? '', accountId:linkedIds[key] };
+        const choices = '<option value="">Sem conta ligada — só histórico</option>'+appData.accounts.filter(a=>!a.creditMovement30).map(a=>
+            '<option value="'+esc(a.id)+'"'+(String(a.id)===String(value.accountId)?' selected':'')+'>'+esc(a.name)+'</option>').join('');
+        const content = '<p>Estes parâmetros são uma referência para estimativas. Não alteram o contrato nem reescrevem automaticamente valores ou datas do histórico.</p>'+
+            moneyField('r30-monthly','Mensalidade do plano (€)',value.monthly,true)+
+            (mode==='fixed' ? '<label for="r30-start">Primeira prestação do plano</label><input id="r30-start" type="date" required value="'+esc(value.start)+'">'+
+                '<label for="r30-end">Última prestação original</label><input id="r30-end" type="date" required value="'+esc(value.end)+'">'+
+                '<p class="r30-warning">Modelo de prestações fixas: total previsto = mensalidade × meses do intervalo, incluindo início e fim. Não calcula novos juros ou penalizações. Confirma que o histórico de pagos está completo.</p>' :
+                moneyField('r30-balance','Capital em dívida confirmado agora (€)',current ? C.project(rows(key),tools(),key,today()).remaining/100 : '',false)+
+                moneyField('r30-amort','Amortização mensal de capital para estimativa (€; 0 = desconhecida)',value.capitalMonthly || 0,false)+
+                '<label for="r30-day">Dia de vencimento</label><input id="r30-day" type="number" min="1" max="31" required value="'+esc(value.day)+'">'+
+                '<label for="r30-end">Fim original de referência (opcional)</label><input id="r30-end" type="date" value="'+esc(value.end)+'">'+
+                '<p class="r30-warning">O saldo confirmado fica ancorado ao histórico atual. Só a amortização de capital reduz a dívida; juros e encargos não a reduzem. A data futura assume amortização mensal constante, não uma revisão bancária.</p>')+
+            '<label for="r30-link">Despesa mensal correspondente</label><select id="r30-link">'+choices+'</select>'+
+            '<label><input type="checkbox" id="r30-confirm-plan" required>Confirmei os valores, as datas e as limitações desta previsão.</label>';
+        modal('Definir plano — '+names[key],content,function () {
+            const next = { mode, monthly:num('r30-monthly'), day:mode==='fixed'?Number($('r30-start').value.slice(8)):Number($('r30-day').value),
+                end:$('r30-end').value, accountId:$('r30-link').value, updatedAt:stamp() };
+            if (mode==='fixed') next.start=$('r30-start').value;
+            else Object.assign(next,{ balance:num('r30-balance'),capitalMonthly:num('r30-amort'),referenceDate:today(),
+                paidBase:C.paid(rows(key),'capital'),extraBase:C.extras(tools(),key) });
+            C.validConfig(next);
+            if (current && !confirm('Atualizar os parâmetros de previsão? O histórico anterior dos parâmetros é preservado.')) return;
+            commit(()=>{
+                const t=tools(true); t.configHistory ||= [];
+                if(current)t.configHistory.push({credit:key,at:stamp(),before:clone(current)});
+                t.configs[key]=next;
+                // Uma nova conferência de saldo substitui a âncora anterior, sem apagar a auditoria.
+                if(mode==='capital')t.events.filter(e=>e.credit===key&&e.type==='balance'&&!e.void).forEach(e=>{e.void=true;e.supersededAt=stamp();});
+            });
+        },'Confirmar plano');
+    }
+    function requirePlan(key) { C.assert(tools().configs[key], 'Define primeiro o plano deste crédito.'); }
+    function historyTotals(key) { const config=tools().configs[key]; return C.paid(rows(key),config.mode,config.mode==='fixed'?config.start:null); }
+    function movementAccount(event) {
+        const parts=C.allocated(event.total,event.owner), y=Number(event.date.slice(0,4)), m=Number(event.date.slice(5,7))-1;
+        const state=Object.fromEntries(Object.keys(parts).map(w=>[w,'PAID']));
+        return { id:event.accountId, name:'Extra '+names[event.credit]+' — '+event.description, group:'Créditos — pagamentos extra',
+            payer:event.owner, amount:event.total, amountM:(parts.M||0)/100,amountS:(parts.S||0)/100,
+            scope:event.owner==='SEMPERFIF'?'general':'general', day:Number(event.date.slice(8)),
+            schedule:{kind:'once',start:event.date.slice(0,7),end:event.date.slice(0,7),reason:'Pagamento extra de crédito; gerir na aba do crédito.'},
+            personStates:{[y+':'+m]:state}, statuses:Array(12).fill('PENDING'), annualStatesVersion:1,
+            creditMovement30:{id:event.id,void:event.void}, paymentNotes:{[y+':'+m]:'Capital: '+euro(C.cents(event.capital))+'; encargos: '+euro(C.cents(event.charges))+'.'} };
+    }
+    function ensureNoLaterBalance(event) {
+        const t=tools(), pos=t.events.indexOf(event);
+        C.assert(!t.events.slice(pos+1).some(e=>e.credit===event.credit&&e.type==='balance'&&!e.void),
+            'Existe um acerto posterior que já inclui este movimento. Anula/revê primeiro esse acerto.');
+    }
+    function extraForm(key,record) {
+        requirePlan(key);
+        const original=record?clone(record):null;
+        const value=record||{description:'',date:today(),total:'',capital:'',owner:linked(key)?.payer==='S'?'S':linked(key)?.payer==='M'?'M':'BOTH'};
+        modal(record?'Editar pagamento extra':'Pagamento extra — '+names[key],
+            '<p>Cria uma única despesa na data indicada. O total sai do orçamento; apenas a componente de capital reduz a dívida.</p>'+
+            '<label for="r30-description">Descrição</label><input id="r30-description" required maxlength="180" value="'+esc(value.description)+'">'+
+            '<label for="r30-date">Data do pagamento</label><input id="r30-date" type="date" required max="'+today()+'" value="'+esc(value.date)+'">'+
+            moneyField('r30-total','Total efetivamente pago (€)',value.total,true)+moneyField('r30-capital','Parte que abate à dívida (€)',value.capital,false)+
+            '<p>Encargos = total − capital. Não serão descontados novamente à dívida.</p>'+
+            '<label for="r30-owner">Quem pagou?</label><select id="r30-owner">'+ownerSelect(value.owner)+'</select>',function () {
+                const total=num('r30-total'),capital=num('r30-capital'),d=$('r30-date').value;
+                C.assert(C.cents(capital)<=C.cents(total),'O capital não pode ultrapassar o total pago.');
+                C.assert(C.date(d)&&d<=today(),'Data de pagamento inválida ou futura.');
+                const anchor=C.latestBalance(tools(),key);
+                if(record)ensureNoLaterBalance(record);
+                C.assert(!anchor||d>=anchor.date,'O pagamento é anterior ao último acerto. Revê esse acerto para não o descontar duas vezes.');
+                const next={ id:record?.id||uid('credit'),type:'extra',credit:key,date:d,total,capital,charges:(C.cents(total)-C.cents(capital))/100,
+                    owner:$('r30-owner').value,description:$('r30-description').value.trim(),void:false,
+                    accountId:record?.accountId||uid('expense'),createdAt:record?.createdAt||stamp(),updatedAt:stamp() };
+                C.assert(next.description.length>0,'Indica uma descrição.');
+                commit(()=>{
+                    const t=tools(true);
+                    if(record){
+                        const target=t.events.find(e=>e.id===record.id);
+                        C.assert(JSON.stringify(target)===JSON.stringify(original),'O movimento mudou. Abre-o novamente.');
+                        next.revisions=[...(target.revisions||[]),{at:stamp(),before:{date:target.date,total:target.total,capital:target.capital,charges:target.charges,owner:target.owner,description:target.description}}];
+                        Object.assign(target,next);
+                        const index=appData.accounts.findIndex(a=>String(a.id)===target.accountId);
+                        C.assert(index>=0,'Falta a despesa ligada.');appData.accounts[index]=movementAccount(target);
+                    }else{t.events.push(next);appData.accounts.push(movementAccount(next));}
+                });
+            },record?'Guardar edição':'Confirmar pagamento');
+    }
+    function balanceForm(key) {
+        requirePlan(key);
+        const result=C.project(rows(key),tools(),key,today());
+        modal('Conferir / acertar saldo — '+names[key],
+            '<p>Substitui o saldo usado na projeção a partir de agora. Não é uma saída de dinheiro e não cria outra despesa. Os movimentos já registados ficam incluídos nesta conferência.</p>'+
+            moneyField('r30-balance',result.mode==='fixed'?'Montante de prestações ainda por pagar (€)':'Capital em dívida confirmado (€)',result.remaining/100,false)+
+            '<label for="r30-description">Motivo / referência da conferência</label><textarea id="r30-description" required maxlength="500"></textarea>'+
+            '<p>Data de registo: '+today()+'. Para um pagamento real, usa Pagamento extra em vez deste acerto.</p>',function () {
+                const e={id:uid('balance'),type:'balance',credit:key,date:today(),amount:num('r30-balance'),paidBase:historyTotals(key),
+                    extraBase:C.extras(tools(),key),description:$('r30-description').value.trim(),void:false,createdAt:stamp()};
+                C.assert(e.description.length>0,'Indica o motivo do acerto.');
+                commit(()=>tools(true).events.push(e));
+            },'Confirmar saldo, sem despesa');
+    }
+    function rowSnapshot(key,dateValue) {
+        const row=rows(key).find(r=>r.date===dateValue && r.status!=='BEGINNING');
+        const account=linked(key), y=Number(dateValue.slice(0,4)), m=Number(dateValue.slice(5,7))-1, period=y+':'+m;
+        return {row:row?clone(row):null,accountId:account?String(account.id):null,period,
+            monthly:account?.monthlyValues?.[period]?clone(account.monthlyValues[period]):null,
+            states:account?.personStates?.[period]?clone(account.personStates[period]):null,reference:referenceSnapshot(key)};
+    }
+    function referenceSnapshot(key) {
+        const t=tools(),anchor=C.latestBalance(t,key),config=t.configs[key];
+        if(anchor)return {kind:'event',id:anchor.id,paidBase:anchor.paidBase};
+        if(config?.mode==='capital')return {kind:'config',id:config.updatedAt,paidBase:config.paidBase};
+        return null;
+    }
+    function updateReferencePaid(key,value) {
+        const anchor=C.latestBalance(tools(),key);
+        if(anchor)anchor.paidBase=value;
+        else if(tools().configs[key]?.mode==='capital')tools().configs[key].paidBase=value;
+    }
+    function historyGuard(key,dateValue) {
+        const anchor=C.latestBalance(tools(),key), config=tools().configs[key];
+        const reference=anchor?.date||(config?.mode==='capital'?config.referenceDate:null);
+        C.assert(!reference||dateValue>reference,'Este período é anterior à conferência de saldo. Usa o editor de prestações na aba do crédito para distinguir correção antiga de pagamento em atraso efetuado agora.');
+    }
+    function historyForm(key,initialDate) {
+        requirePlan(key);
+        const list=rows(key).filter(r=>r.status!=='BEGINNING'&&C.date(r.date)).slice().sort((a,b)=>b.date.localeCompare(a.date));
+        const config=tools().configs[key];
+        const opts=list.map(r=>'<option value="'+esc(r.date)+'">'+esc(r.date)+' · '+esc(r.status)+'</option>').join('');
+        modal('Corrigir / regularizar prestação — '+names[key],
+            '<p>Atualiza o registo da prestação escolhida. Não cria uma segunda saída no mês atual. Se existir uma despesa ligada nesse período, corrige só esse mês e os seus estados.</p>'+
+            '<label for="r30-slot">Prestação existente</label><select id="r30-slot"><option value="">Escolher / indicar data em falta</option>'+opts+'</select>'+
+            '<label for="r30-date">Data da prestação no plano</label><input id="r30-date" type="date" required value="'+esc(initialDate||selectedDate())+'">'+
+            moneyField('r30-installment','Valor da prestação (€)',config.monthly,false)+
+            (config.mode==='capital'?moneyField('r30-amort','Capital amortizado nesta prestação (€)',0,false):'')+
+            '<label for="r30-status">Estado</label><select id="r30-status"><option value="PENDING">Por pagar</option><option value="SEPARATED">Separado</option><option value="PAID">Pago</option></select>'+
+            '<label for="r30-description">Motivo / observação</label><textarea id="r30-description" maxlength="500" required></textarea>'+
+            '<label><input type="checkbox" id="r30-after-anchor">É um pagamento em atraso efetuado agora, depois da última conferência de saldo.</label><p>Sem esta opção, uma correção de um período anterior à conferência preserva o saldo já confirmado; corrige apenas o histórico. Com a opção, a diferença abate ao saldo a partir de agora.</p>'+
+            '<p class="r30-warning">Os saldos linha a linha do plano original não são recalculados como se fossem confirmação do banco. Usa o resumo da previsão e os acertos de saldo.</p>',function () {
+                const dateValue=$('r30-date').value,amount=num('r30-installment'),status=$('r30-status').value;
+                C.assert(C.date(dateValue),'Data da prestação inválida.');
+                const anchor=C.latestBalance(tools(),key),referenceDate=anchor?.date||(config.mode==='capital'?config.referenceDate:null);
+                const preserveReference=referenceDate&&dateValue<=referenceDate&&!$('r30-after-anchor').checked;
+                C.assert(status!=='PAID'||dateValue<=today(),'Não marques uma prestação futura como paga neste editor.');
+                if(config.mode==='fixed')C.assert(C.index(dateValue)>=C.index(config.start)&&C.index(dateValue)<=C.index(config.end),'Escolhe uma prestação do intervalo original. Para regularizar um atraso, usa a data da prestação em falta.');
+                const inMonth=rows(key).filter(r=>r.status!=='BEGINNING'&&r.date.slice(0,7)===dateValue.slice(0,7));
+                C.assert(inMonth.length<=1,'Existem várias linhas nesse mês; revê os dados antes de corrigir.');
+                C.assert(!inMonth.length||inMonth[0].date===dateValue,'Já existe uma prestação nesse mês. Seleciona a data exata existente.');
+                const before=rowSnapshot(key,dateValue), paidBefore=historyTotals(key), reason=$('r30-description').value.trim();
+                C.assert(reason.length>0,'Indica o motivo da correção.');
+                const amort=config.mode==='capital'?num('r30-amort'):undefined;
+                if(amort!==undefined)C.assert(C.cents(amort)<=C.cents(amount),'A amortização não pode exceder a prestação.');
+                commit(()=>{
+                    const list=rows(key),target=list.find(r=>r.date===dateValue&&r.status!=='BEGINNING');
+                    const update={...(target||{date:dateValue,balance:0,estimatedBalance30:true}),installment:amount,status};
+                    if(amort!==undefined){update.amort=amort;if(update.amortization!==undefined)update.amortization=amort;}
+                    if(target)Object.assign(target,update);else{list.push(update);list.sort((a,b)=>a.date.localeCompare(b.date));}
+                    const account=linked(key),y=Number(dateValue.slice(0,4)),m=Number(dateValue.slice(5,7))-1,period=y+':'+m;
+                    if(account && occurs11(account,y,m)){
+                        const oldParts=parts11(account,y,m),oldTotal=Object.values(oldParts).reduce((n,v)=>n+Math.round(Number(v)*100),0);
+                        const keys=Object.keys(oldParts),shareValues={};let rest=C.cents(amount);
+                        keys.forEach((who,i)=>{const n=i===keys.length-1?rest:(oldTotal?Math.floor(C.cents(amount)*Math.round(Number(oldParts[who])*100)/oldTotal):Math.floor(C.cents(amount)/keys.length));shareValues[who]=n/100;rest-=n;});
+                        account.monthlyValues||={};account.monthlyValues[period]={...(account.monthlyValues[period]||{}),shares:shareValues};
+                        account.personStates||={};account.personStates[period]=Object.fromEntries(keys.map(w=>[w,status]));
+                    }
+                    appData.linkedCreditUpdates||={};appData.linkedCreditUpdates[key+':'+dateValue]={status,installment:amount};
+                    if(preserveReference&&before.reference)updateReferencePaid(key,before.reference.paidBase+historyTotals(key)-paidBefore);
+                    tools(true).events.push({id:uid('history'),type:'history',credit:key,date:today(),targetDate:dateValue,
+                        description:reason,void:false,createdAt:stamp(),before,after:rowSnapshot(key,dateValue)});
+                });
+            },'Confirmar correção');
+        function fill(dateValue){
+            const row=list.find(r=>r.date===dateValue);if(!row)return;
+            $('r30-date').value=row.date;$('r30-installment').value=row.installment||config.monthly;
+            $('r30-status').value=['PAID','SEPARATED'].includes(row.status)?row.status:'PENDING';
+            if($('r30-amort'))$('r30-amort').value=row.amort??row.amortization??0;
+        }
+        $('r30-slot').onchange=()=>fill($('r30-slot').value);
+        if(initialDate){$('r30-slot').value=initialDate;fill(initialDate);}
+    }
+    function undoEvent(id) {
+        const event=tools().events.find(e=>e.id===id);if(!event)return;
+        ensureNoLaterBalance(event);
+        if(event.type==='history'&&event.void)throw Error('Para refazer uma correção anulada, regista uma nova correção.');
+        if(!confirm((event.void?'Restaurar':'Anular')+' este movimento? A auditoria é preservada.'))return;
+        commit(()=>{
+            if(event.type==='extra'){
+                event.void=!event.void;
+                const a=appData.accounts.find(a=>String(a.id)===event.accountId);C.assert(a,'Falta a despesa ligada.');a.creditMovement30.void=event.void;
+            }else if(event.type==='history'){
+                C.assert(JSON.stringify(rowSnapshot(event.credit,event.targetDate))===JSON.stringify(event.after),
+                    'A prestação ou o orçamento mudaram entretanto. Corrige o estado atual em vez de repor um retrato antigo.');
+                const list=rows(event.credit),i=list.findIndex(r=>r.date===event.targetDate&&r.status!=='BEGINNING');
+                if(event.before.row)list[i]=clone(event.before.row);else if(i>=0)list.splice(i,1);
+                const a=appData.accounts.find(a=>String(a.id)===event.before.accountId),p=event.before.period;
+                if(a){
+                    if(event.before.monthly){a.monthlyValues||={};a.monthlyValues[p]=clone(event.before.monthly);}else if(a.monthlyValues)delete a.monthlyValues[p];
+                    if(event.before.states){a.personStates||={};a.personStates[p]=clone(event.before.states);}else if(a.personStates)delete a.personStates[p];
+                }
+                if(appData.linkedCreditUpdates){
+                    if(event.before.row)appData.linkedCreditUpdates[event.credit+':'+event.targetDate]={status:event.before.row.status,installment:event.before.row.installment};
+                    else delete appData.linkedCreditUpdates[event.credit+':'+event.targetDate];
+                }
+                if(event.before.reference)updateReferencePaid(event.credit,event.before.reference.paidBase);
+                event.void=true;
+            }else{event.void=!event.void;}
+            event.updatedAt=stamp();
+        });
+    }
+    function creditUI(key) {
+        if(!booted||!appData)return;
+        const panel=$('r30-credit'),t=tools(),config=t.configs[key];
+        panel.hidden=false;panel.replaceChildren();
+        const title=document.createElement('h3');title.textContent='Plano, pagamentos extra e acertos';panel.append(title);
+        const actions=document.createElement('div');actions.className='r30-actions';
+        actions.append(button(config?'Rever plano':'Definir plano',()=>configForm(key),!config),button('Pagamento extra',()=>extraForm(key),true),
+            button('Regularizar / corrigir prestação',()=>historyForm(key)),button('Acertar saldo',()=>balanceForm(key)));panel.append(actions);
+        if(!config){
+            const p=document.createElement('p');p.className='r30-warning';p.textContent='Define os parâmetros para obter uma previsão. Não foram inventados saldos, mensalidades ou datas contratuais.';panel.append(p);
+            $('kpi-total').textContent='Por definir';$('kpi-sub-total').textContent='Define o plano para calcular a estimativa.';
+        }else{
+            const result=C.project(rows(key),t,key,today());
+            const dateText=result.estimate?result.estimate.split('-').reverse().join('-'):'—';
+            const pendingLabel=config.mode==='fixed'?'Prestações por pagar — estimativa':'Capital em dívida — estimativa';
+            $('kpi-label-pending').textContent=pendingLabel;$('kpi-pending').textContent=euro(result.remaining);
+            $('kpi-sub-pending').textContent=result.anchor?'Após a última conferência e os movimentos seguintes':'Baseado no plano e nos registos de pagamento';
+            $('kpi-label-separated').textContent=config.mode==='fixed'?'Total do plano original':'Saldo de referência';
+            $('kpi-separated').textContent=euro(result.original);$('kpi-sub-separated').textContent=config.mode==='fixed'?'Mensalidade × número de prestações':'Valor confirmado ao definir o plano';
+            $('kpi-label-paid').textContent='Saídas registadas';$('kpi-paid').textContent=euro(result.regularCash+result.extraCash);
+            $('kpi-sub-paid').textContent='Prestações pagas + extras, incluindo encargos';
+            $('kpi-label-total').textContent='Prazo estimado';$('kpi-total').textContent=result.remainingMonths===null?'Por confirmar':result.remainingMonths+' meses';
+            $('kpi-sub-total').textContent=result.remaining===0?'Sem valor por pagar neste modelo':result.estimate?'Fim previsto: '+dateText:'Indica a amortização mensal prevista de capital';
+            const stats=document.createElement('div');stats.className='r30-grid';
+            const items=[['Fim original de referência',config.end?config.end.split('-').reverse().join('-'):'Não definido'],['Fim previsto — estimativa',dateText],
+                ['Capital de pagamentos extra',euro(result.extra)],['Desvio ao fim original',result.shift===null?'—':(result.shift>0?'+':'')+result.shift+' meses']];
+            items.forEach(([label,text])=>{const card=document.createElement('div');card.className='r30-stat';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=text;card.append(l,v);stats.append(card);});panel.append(stats);
+            const progress=document.createElement('div');progress.id='r30-progress';progress.setAttribute('role','progressbar');progress.setAttribute('aria-label',config.mode==='fixed'?'Progresso estimado do plano':'Progresso desde o saldo de referência');
+            const percent=result.original?Math.max(0,Math.min(100,(result.original-result.remaining)/result.original*100)):0;
+            progress.setAttribute('aria-valuemin','0');progress.setAttribute('aria-valuemax','100');progress.setAttribute('aria-valuenow',String(Math.round(percent)));
+            const fill=document.createElement('div');fill.style.width=percent+'%';progress.append(fill);panel.append(progress);
+            const note=document.createElement('p');note.className='r30-warning';
+            note.textContent=config.mode==='fixed'?'Projeção de prestações fixas, sem novos juros: um vencimento por regularizar desloca a estimativa; registar o pagamento em atraso recupera esse desvio sem o voltar a somar. Só os registos marcados como pagos são considerados. A data original não é alterada.':
+                'Projeção de capital: só a amortização e os extras de capital reduzem a dívida. A data assume amortização mensal constante; não substitui o plano atualizado do banco.';
+            if(result.missingCapital)note.textContent+=' Há prestações sem amortização discriminada; revê o saldo e os dados antes de confiar na previsão.';
+            if(result.overpaid)note.textContent+=' Atenção: pagamentos excedem o saldo do modelo em '+euro(result.overpaid)+'. Revê os parâmetros.';
+            panel.append(note);
+        }
+        // O cartão antigo confundia o saldo teórico da linha com o saldo atual. Mantém-se o histórico,
+        // mas o cartão corrente passa a identificar o registo e a edição auditável.
+        const month=selectedMonthIdx==='all'?new Date().getMonth():Number(selectedMonthIdx),ym=selectedYear+'-'+String(month+1).padStart(2,'0');
+        const item=rows(key).find(r=>r.status!=='BEGINNING'&&r.date.slice(0,7)===ym);
+        const box=$('credit-current-month-box');box.replaceChildren();
+        const text=document.createElement('p');text.textContent=item?'Prestação de '+item.date+' · '+euro(Math.round(Number(item.installment||0)*100))+' · '+item.status:'Sem prestação registada para '+ym+'.';box.append(text);
+        box.append(button('Abrir registo da prestação',()=>historyForm(key,item?.date)));
+        const events=t.events.filter(e=>e.credit===key).slice().reverse();
+        const heading=document.createElement('h3');heading.textContent='Movimentos e auditoria';heading.style.marginTop='20px';panel.append(heading);
+        if(!events.length){const p=document.createElement('p');p.textContent='Ainda não há pagamentos extra, acertos ou correções nesta revisão.';panel.append(p);}
+        events.forEach(e=>{
+            const entry=document.createElement('div');entry.className='r30-entry';entry.dataset.void=String(e.void);
+            const p=document.createElement('p');
+            p.textContent=e.date+' · '+({extra:'Pagamento extra',balance:'Acerto sem saída de dinheiro',history:'Correção de '+e.targetDate}[e.type])+' · '+e.description+
+                (e.type==='extra'?' · total '+euro(C.cents(e.total))+' / capital '+euro(C.cents(e.capital))+' / encargos '+euro(C.cents(e.charges)):e.type==='balance'?' · saldo '+euro(C.cents(e.amount)):'')+(e.void?' · ANULADO':'');
+            entry.append(p);const controls=document.createElement('div');controls.className='r30-actions';
+            if(e.type==='extra'&&!e.void)controls.append(button('Editar',()=>extraForm(key,e)));
+            if(!(e.type==='history'&&e.void))controls.append(button(e.void?'Restaurar':'Anular',()=>undoEvent(e.id)));
+            entry.append(controls);panel.append(entry);
+        });
+        if(showFullCreditHistory){
+            const heads=$('credit-table-head').querySelectorAll('th');if(heads[2])heads[2].textContent='Saldo do plano original — não recalculado';
+            const tr=$('credit-table-body').rows;
+            rows(key).forEach((r,i)=>{if(tr[i]&&r.estimatedBalance30){tr[i].cells[2].textContent='Não confirmado';}});
+        }
+    }
+    function allPaid() {
+        if(!appData||tabs.includes(currentTab))return false;
+        const months=selectedMonthIdx==='all'?Array.from({length:12},(_,i)=>i):[Number(selectedMonthIdx)];
+        const who=currentTab==='m'?'M':currentTab==='s'?'S':null;let found=false;
+        for(const m of months)for(const a of appData.accounts){
+            if(!occurs11(a,selectedYear,m))continue;
+            const p=parts11(a,selectedYear,m);
+            if(currentTab==='geral'&&a.scope==='semperfif'||currentTab==='semperfif'&&a.payer!=='SEMPERFIF')continue;
+            for(const [w,n]of Object.entries(p))if(Number(n)>0&&(!who||who===w)){
+                found=true;const status=a.personStates?.[selectedYear+':'+m]?.[w]||(Number(selectedYear)===2026?a.statuses?.[m]:null)||'PENDING';
+                if(status!=='PAID')return false;
+            }
+        }
+        return found;
+    }
+    function watchSync() {
+        const node=$('sync-status');if(!node)return;
+        observer=new MutationObserver(()=>{
+            const state=node.dataset.state;
+            if(state==='pending'||state==='saving')partyArmed=true;
+            if(state==='saved'){
+                notify('Guardado e confirmado no Sheets.',true);
+                if(partyArmed&&allPaid()){
+                    notify('TUDO PAGOOOO — gravação confirmada.',true);
+                    if(effectiveMotion()==='full'&&typeof confetti==='function')confetti({particleCount:70,spread:65,origin:{y:.7},disableForReducedMotion:true});
+                }
+                partyArmed=false;
+            }
+        });observer.observe(node,{attributes:true,attributeFilter:['data-state']});
+    }
+    function boot() {
+        if(booted)return;booted=true;
+        const dialog=document.createElement('dialog');dialog.id='r30-dialog';
+        dialog.innerHTML='<form id="r30-form"><header><h2 id="r30-dialog-title"></h2><button class="r30-close" id="r30-close" type="button" aria-label="Fechar formulário">×</button></header><div id="r30-fields"></div><p id="r30-error" role="alert"></p><div class="r30-actions"><button id="r30-submit" class="r30-primary" type="submit">Confirmar</button><button type="button" id="r30-cancel">Cancelar</button></div></form>';
+        document.body.append(dialog);dialog.setAttribute('aria-labelledby','r30-dialog-title');
+        $('r30-close').onclick=$('r30-cancel').onclick=()=>dialog.close();dialog.addEventListener('close',()=>closeFocus?.isConnected && closeFocus.focus({preventScroll:true}));
+        const feedback=document.createElement('div');feedback.id='r30-feedback';feedback.hidden=true;feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');
+        feedback.innerHTML='<span id="r30-save-emoji" aria-hidden="true"></span><span id="r30-feedback-text"></span>';document.body.append(feedback);
+        const gains=document.createElement('section');gains.id='r30-gains';gains.className='r30-panel';gains.hidden=true;
+        gains.innerHTML='<h3>Ganhos adicionais</h3><p id="r30-gain-total"></p><div class="r30-actions" id="r30-gain-actions"></div><label><input type="checkbox" id="r30-show-removed"> Mostrar removidos</label><div id="r30-gain-list"></div>';
+        $('standard-table-container').append(gains);$('r30-gain-actions').append(button('+ Registar ganho',()=>gainForm(null),true));
+        $('r30-show-removed').onchange=paintGains;
+        const credits=document.createElement('section');credits.id='r30-credit';credits.className='r30-panel';credits.hidden=true;$('credit-current-month-box').after(credits);
+        const settings=document.createElement('details');settings.className='r30-panel';
+        settings.innerHTML='<summary>Animações e som</summary><label for="r30-motion">Movimento</label><select id="r30-motion"><option value="full">Completo — bouncy</option><option value="reduced">Discreto</option><option value="off">Desligado</option></select><label><input id="r30-sound" type="checkbox"> Ativar som (independente das animações)</label><p>Preferências locais. A opção de movimento reduzido do dispositivo tem prioridade. A confirmação de gravação continua sempre visível.</p>';
+        document.querySelector('#settings-modal .settings-panel')?.append(settings);
+        function saveEffects(){prefs.motion=$('r30-motion').value;prefs.sound=$('r30-sound').checked;try{localStorage.setItem('contas_ms_effects30',JSON.stringify(prefs));}catch(_){}applyEffects();}
+        $('r30-motion').onchange=$('r30-sound').onchange=saveEffects;applyEffects();reduced.addEventListener?.('change',applyEffects);
+        const sound=playSoundForStatus;
+        playSoundForStatus=function(){if(prefs.sound===true)return sound.apply(this,arguments);};
+        // Não festejar operações financeiras antes da confirmação de sincronização.
+        triggerPartyEffect=function(){partyArmed=true;};
+        const logo=runLogoEffect;
+        runLogoEffect=function(){if(effectiveMotion()==='full')return logo.apply(this,arguments);};
+        const priorOccurs=occurs11;
+        occurs11=function(a,y,m){return a.creditMovement30?.void?false:priorOccurs(a,y,m);};
+        const priorOpen=openEditModal,priorMonth=openMonth10,priorCycle=cycleStatus;
+        function protectedAccount(id){return appData.accounts.find(a=>String(a.id)===String(id))?.creditMovement30;}
+        openEditModal=function(id){if(protectedAccount(id)){notify('Gere este pagamento extra na aba do crédito.',false);return;}return priorOpen.apply(this,arguments);};
+        openMonth10=function(id){if(protectedAccount(id)){notify('Gere este pagamento extra na aba do crédito.',false);return;}return priorMonth.apply(this,arguments);};
+        cycleStatus=function(id,m){
+            if(protectedAccount(id)){notify('Este pagamento já está confirmado como saída. Para o anular, usa a aba do crédito.',false);return;}
+            const key=tabs.find(k=>String(linked(k)?.id)===String(id));
+            if(key){try{historyGuard(key,selectedYear+'-'+String(Number(m)+1).padStart(2,'0')+'-01');}catch(e){notify(e.message,false);return;}}
+            return priorCycle.apply(this,arguments);
+        };
+        markCreditMonthPaid=function(key,dateValue){try{historyForm(key,dateValue);}catch(e){notify(e.message,false);}};
+        const priorRender=renderApp;
+        renderApp=function(){
+            const result=priorRender.apply(this,arguments);
+            if(!booted||!appData)return result;
+            if(tabs.includes(currentTab))creditUI(currentTab);else{$('r30-credit').hidden=true;budget();}
+            paintGains();return result;
+        };
+        const priorCredit=renderCreditSection;
+        renderCreditSection=function(key){const result=priorCredit.apply(this,arguments);creditUI(key);return result;};
+        ['r28-gains','r28-expenses'].forEach(id=>$(id).addEventListener('click',paintGains));
+        $('r28-search').addEventListener('input',paintGains);
+        const help=$('help26')?.querySelector('.settings-panel');
+        if(help){
+            help.querySelectorAll('p').forEach(p=>{if(p.textContent.includes('não foram implementados nesta entrega'))p.textContent='As funcionalidades financeiras adicionais são integradas pela revisão 30, descrita abaixo.';});
+            const d=document.createElement('details');d.innerHTML='<summary>Revisão 30 — ganhos, créditos e efeitos</summary><p>Ganhos adicionais têm data e ano próprios. Pagamentos extra de créditos criam uma única despesa ligada; capital e encargos ficam separados. Gerem-se na aba do crédito.</p><p>Acertos apenas conferem o saldo e não criam despesa. Não anules um movimento incluído num acerto posterior sem rever primeiro esse acerto. Correções históricas não geram outra saída no mês atual.</p><p>O Carro usa um modelo explícito de prestações fixas e conserva a data final original. A previsão é recalculada a partir dos pagamentos, não incrementada a cada visita. Casa e AB usam capital confirmado e amortização de capital; sem essa informação não se inventa uma data.</p><p>Exporta backup antes de atualizar. Não abras simultaneamente versões antigas e novas enquanto fazes alterações. A releitura do Sheets confirma a gravação; efeitos e sons não a substituem.</p>';help.append(d);
+        }
+        watchSync();if(appData)renderApp();
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
+
+</script>
+<!-- FIM DA EXTENSÃO CONSOLIDADA R30 -->
+</body>
 </html>
