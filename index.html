@@ -276,12 +276,7 @@ html.dark body {
     --gain-bg: #123d33;
     --gain-ink: #d1fae5
 }
-#table-header-row,
-#table-header-row th,
-#table-header-row .sticky-col {
-    background: var(--surface) !important;
-    color: var(--ink) !important
-}
+#table-header-row { display: none !important; }
 .selector-theme,
 .selector-theme span,
 .selector-theme select,
@@ -881,7 +876,63 @@ html.dark :is(#month-dialog10, #month-modal-v10, #note-reader11, #reader11, #not
 html.dark :is(#month-error10, #month-error-v10) {
     color: #fda4af !important;
 }
-  </style>
+  
+/* R32 - Cápsula de período unificada e limpa */
+#period27 {
+    display: inline-flex !important;
+    align-items: center !important;
+    background: var(--surface) !important;
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
+    border-radius: 999px !important;
+    padding: 3px 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+    gap: 4px !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+}
+#credit-container #period27,
+.credit-tab-active #period27 {
+    display: none !important;
+}
+#period27 button {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    font-weight: 750 !important;
+    cursor: pointer !important;
+    color: var(--ink) !important;
+}
+#period27 .selector-theme {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+#period27 select {
+    background: transparent !important;
+    border: 0 !important;
+    font-size: 14px !important;
+    font-weight: 750 !important;
+    color: var(--ink) !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+}
+#period27 #annual27 {
+    background: rgba(37, 99, 235, 0.1) !important;
+    color: #2563eb !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    margin-left: 4px !important;
+}
+#period27 #annual27[aria-pressed="true"] {
+    background: #2563eb !important;
+    color: white !important;
+}
+
+</style>
   <link href="./manifest.webmanifest" rel="manifest"/>
   <meta content="#5b21b6" name="theme-color"/>
   <link href="./icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
@@ -5942,7 +5993,8 @@ html.dark .r27-danger button {
     function updatePeriod() {
         if (!period) return;
         const credit = ['casa', 'carro', 'credito_ab'].includes(currentTab);
-        const target = credit ? $('credit-container').firstElementChild : $('table-sub-notice').parentElement;
+        if (credit) { period.style.display = 'none'; return; } else { period.style.display = 'inline-flex'; }
+        const target = $('table-sub-notice').parentElement;
         if (period.parentElement !== target) target.append(period);
         ensureYear();
         $('month-select').value = selectedMonthIdx;
@@ -7531,8 +7583,9 @@ var ContasCore30 = (function () {
         panel.hidden=false;panel.replaceChildren();
         const title=document.createElement('h3');title.textContent='Plano, pagamentos extra e acertos';panel.append(title);
         const actions=document.createElement('div');actions.className='r30-actions';
-        actions.append(button(config?'Rever plano':'Definir plano',()=>configForm(key),!config),button('Pagamento extra',()=>extraForm(key),true),
-            button('Regularizar / corrigir prestação',()=>historyForm(key)),button('Acertar saldo',()=>balanceForm(key)));panel.append(actions);
+        actions.append(button('Acertar saldo',()=>balanceForm(key),true),
+            button('+ Pagamento extra / amortizar',()=>extraForm(key),true),
+            button('Rever plano',()=>configForm(key)));panel.append(actions);
         if(!config){
             const p=document.createElement('p');p.className='r30-warning';p.textContent='Define os parâmetros para obter uma previsão. Não foram inventados saldos, mensalidades ou datas contratuais.';panel.append(p);
             $('kpi-total').textContent='Por definir';$('kpi-sub-total').textContent='Define o plano para calcular a estimativa.';
@@ -8147,5 +8200,34 @@ var ContasCore31 = (function () {
 })();
 
 </script>
+
+<script>
+// R32 - Ativação do clique no logotipo para disparar a animação selecionada
+document.addEventListener('DOMContentLoaded', function() {
+    function bindLogoEffect() {
+        const badge = document.getElementById('header-icon-badge');
+        if (!badge || badge.dataset.effectBound === 'true') return;
+        badge.dataset.effectBound = 'true';
+        badge.style.cursor = 'pointer';
+        badge.addEventListener('click', function(e) {
+            e.stopPropagation();
+            try {
+                const prefs = JSON.parse(localStorage.getItem('contas_view_prefs_r28') || '{}');
+                const effect = (prefs[currentTab] || {}).clickEffect || 'fountain';
+                if (typeof runLogoEffect === 'function') {
+                    runLogoEffect(effect, badge);
+                } else if (typeof window.moneyRain26 === 'function') {
+                    window.moneyRain26();
+                }
+            } catch(err) {
+                if (typeof window.moneyRain26 === 'function') window.moneyRain26();
+            }
+        });
+    }
+    bindLogoEffect();
+    setInterval(bindLogoEffect, 1200);
+});
+</script>
+
 </body>
 </html>
