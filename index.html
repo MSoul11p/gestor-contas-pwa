@@ -1836,14 +1836,8 @@ body[data-r31] #r30-dialog{background:var(--r31-card);color:var(--r31-ink)}body[
     <button class="nav-tab-btn px-3.5 py-2 rounded-full font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-all whitespace-nowrap cartoon-bounce text-[11px]" data-tab="semperfif" onclick="switchTab('semperfif')">
      🏪 Semperfif
     </button>
-    <button class="nav-tab-btn px-3.5 py-2 rounded-full font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-all whitespace-nowrap cartoon-bounce text-[11px]" data-tab="casa" onclick="switchTab('casa')">
-     🏠 C. Casa
-    </button>
-    <button class="nav-tab-btn px-3.5 py-2 rounded-full font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-all whitespace-nowrap cartoon-bounce text-[11px]" data-tab="carro" onclick="switchTab('carro')">
-     🚘 C. Carro
-    </button>
-    <button class="nav-tab-btn px-3.5 py-2 rounded-full font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-all whitespace-nowrap cartoon-bounce text-[11px]" data-tab="credito_ab" onclick="switchTab('credito_ab')">
-     💳 C. AB
+    <button class="nav-tab-btn px-3.5 py-2 rounded-full font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-all whitespace-nowrap cartoon-bounce text-[11px]" data-tab="creditos" onclick="switchTab('creditos')">
+     🏛️ Créditos
     </button>
    </div>
   </nav>
@@ -2102,6 +2096,7 @@ function switchTab(tabKey) {
             if (tKey === 'casa') activeBg = 'bg-orange-500 text-slate-950';
             if (tKey === 'carro') activeBg = 'bg-cyan-500 text-slate-950';
             if (tKey === 'credito_ab') activeBg = 'bg-indigo-600 text-white';
+            if (tKey === 'creditos') activeBg = 'bg-amber-500 text-slate-950 font-black shadow-lg';
             btn.className = `nav-tab-btn active px-3.5 py-2 rounded-full font-black transition-all whitespace-nowrap ${activeBg} shadow-md cartoon-bounce text-[11px]`;
         }
         else {
@@ -2122,10 +2117,10 @@ function renderApp() {
     const monthName = selectedMonthIdx === 'all' ? 'Ano Inteiro' : MONTHS[parseInt(selectedMonthIdx)];
     subNotice.innerText = `Exibindo: ${monthName} (${selectedYear})`;
     const iconsMap = {
-        geral: '👑', m: '🧔', s: '👩', semperfif: '🏪', casa: '🏠', carro: '🚘', credito_ab: '💳' 
+        geral: '👑', m: '🧔', s: '👩', semperfif: '🏪', casa: '🏠', carro: '🚘', credito_ab: '💳', creditos: '🏛️' 
     };
     const labelsMap = {
-        geral: 'Vista Geral (Tudo)', m: 'Contas M', s: 'Contas S', semperfif: 'Semperfif', casa: 'Crédito Casa', carro: 'Crédito Carro', credito_ab: 'Crédito AB' 
+        geral: 'Vista Geral (Tudo)', m: 'Contas M', s: 'Contas S', semperfif: 'Semperfif', casa: 'Crédito Casa', carro: 'Crédito Carro', credito_ab: 'Crédito AB', creditos: 'Créditos & Dívidas' 
     };
     iconBadge.innerText = iconsMap[currentTab] || '📋';
     tabSub.innerText = `${labelsMap[currentTab]} (${selectedYear})`;
@@ -2145,10 +2140,11 @@ function renderApp() {
         btnCalendar.classList.add('hidden');
         calendarDrawer.classList.add('hidden');
     }
-    if (['casa', 'carro', 'credito_ab'].includes(currentTab)) {
+    if (['casa', 'carro', 'credito_ab', 'creditos'].includes(currentTab)) {
         stdTableContainer.classList.add('hidden');
         creditContainer.classList.remove('hidden');
-        renderCreditSection(currentTab);
+        if (typeof renderUnifiedCreditsScreen === 'function') renderUnifiedCreditsScreen();
+        else renderCreditSection(currentTab);
     }
     else {
         stdTableContainer.classList.remove('hidden');
@@ -2675,16 +2671,10 @@ function renderCreditSection(creditTab) {
                     </div>
 
 
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button type="button" onclick="openCreditAdjustModal('${creditTab}')" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow">
-                            ⚖️ Acertar Saldo / Extra
-                        </button>
-                        <button type="button" onclick="openNewCreditModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold rounded-xl text-xs flex items-center gap-1.5">
-                            + Novo Crédito Manual
-                        </button>
-                        <button type="button" onclick="markCreditMonthPaid('${creditTab}', '${currentMonthItem.date}')" class="px-4 py-2.5 ${currentMonthItem.status === 'PAID' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black'} rounded-xl shadow cartoon-bounce text-xs flex items-center gap-1.5">
+                    <div class="flex items-center gap-3">
+                        <button onclick="markCreditMonthPaid('${creditTab}', '${currentMonthItem.date}')" class="px-5 py-3 ${currentMonthItem.status === 'PAID' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black'} rounded-2xl shadow-lg cartoon-bounce text-xs flex items-center gap-2">
                             <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                            <span>${currentMonthItem.status === 'PAID' ? '✓ Liquidado este Mês' : 'Marcar como Pago'}</span>
+                            <span>${currentMonthItem.status === 'PAID' ? '✅ Liquidado este Mês' : 'Marcar Prestação como Paga'}</span>
                         </button>
                     </div>
                 </div>
@@ -8411,6 +8401,250 @@ function handleCreateManualCredit(e) {
     renderApp();
     alert('Crédito "' + name + '" adicionado com sucesso às contas!');
 }
+</script>
+
+
+<script>
+// ==========================================
+// R33: ABA UNIFICADA DE CRÉDITOS E DÍVIDAS
+// ==========================================
+let activeCreditSubTab = 'carro'; // 'casa', 'carro', 'credito_ab', ou ID de manual
+let activeCreditOwnerFilter = 'ALL'; // 'ALL', 'M', 'S', 'BOTH'
+
+function renderUnifiedCreditsScreen() {
+    const container = document.getElementById('credit-container');
+    if (!container) return;
+
+    // Lista de créditos predefinidos
+    const standardCredits = [
+        { id: 'carro', name: '🚘 Crédito Carro', owner: 'M', total: 17625.00, monthly: 200.00, data: CREDIT_CARRO_DATA },
+        { id: 'casa', name: '🏠 Crédito Casa', owner: 'BOTH', total: 6000.00, monthly: 200.00, data: CREDIT_CASA_DATA },
+        { id: 'credito_ab', name: '💳 Crédito AB', owner: 'M', total: 5314.04, monthly: 248.61, data: CREDIT_AB_DATA }
+    ];
+
+    // Obter créditos manuais guardados em appData ou localStorage
+    let manualCredits = [];
+    try {
+        manualCredits = JSON.parse(localStorage.getItem('contas_manual_credits_v1') || '[]');
+    } catch(e) { manualCredits = []; }
+
+    const allCredits = [...standardCredits, ...manualCredits];
+
+    // Se a aba ativa não existir, seleciona a primeira
+    if (!allCredits.some(c => c.id === activeCreditSubTab)) {
+        activeCreditSubTab = allCredits[0]?.id || 'carro';
+    }
+
+    // Calcular totais globais
+    let globalFalta = 0, globalTotal = 0, globalPago = 0, globalMensal = 0;
+    allCredits.forEach(c => {
+        let saldo = c.total, pago = 0;
+        if (c.data && c.data.length > 0) {
+            c.data.forEach(item => {
+                if (item.status === 'PAID') pago += (item.installment || 0);
+            });
+            const lastPaid = [...c.data].reverse().find(i => i.status === 'PAID');
+            saldo = lastPaid ? lastPaid.balance : c.total;
+        } else if (c.remaining !== undefined) {
+            saldo = c.remaining;
+            pago = Math.max(0, c.total - saldo);
+        }
+        globalFalta += saldo;
+        globalTotal += c.total;
+        globalPago += pago;
+        globalMensal += (c.monthly || 0);
+    });
+
+    // Sub-navegação e seletor
+    let subNavHTML = `
+        <div class="p-4 border-b border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="font-black text-lg text-amber-400 flex items-center gap-2">
+                    🏛️ Créditos & Dívidas
+                </h3>
+                <p class="text-xs text-slate-400">
+                    Total em dívida: <strong class="text-slate-200">${globalFalta.toFixed(2)} €</strong> · Mensalidades: <strong class="text-slate-200">${globalMensal.toFixed(2)} €/mês</strong>
+                </p>
+            </div>
+            <button onclick="openNewCreditModal()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md cartoon-bounce">
+                + Novo Crédito / Dívida
+            </button>
+        </div>
+
+        <!-- Filtro por Titular e Pílulas de Créditos -->
+        <div class="px-4 py-3 bg-slate-950/40 border-b border-slate-800/80 flex flex-col gap-2.5">
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span class="text-[11px] font-bold text-slate-400">Titular:</span>
+                <button onclick="setCreditOwnerFilter('ALL')" class="px-3 py-1 rounded-full text-xs font-bold ${activeCreditOwnerFilter==='ALL'?'bg-slate-200 text-slate-950':'bg-slate-800 text-slate-400'}">Todos</button>
+                <button onclick="setCreditOwnerFilter('M')" class="px-3 py-1 rounded-full text-xs font-bold ${activeCreditOwnerFilter==='M'?'bg-blue-600 text-white':'bg-slate-800 text-slate-400'}">Miguel (🧔)</button>
+                <button onclick="setCreditOwnerFilter('S')" class="px-3 py-1 rounded-full text-xs font-bold ${activeCreditOwnerFilter==='S'?'bg-pink-600 text-white':'bg-slate-800 text-slate-400'}">Sofia (👩)</button>
+                <button onclick="setCreditOwnerFilter('BOTH')" class="px-3 py-1 rounded-full text-xs font-bold ${activeCreditOwnerFilter==='BOTH'?'bg-purple-600 text-white':'bg-slate-800 text-slate-400'}">Ambos (M+S)</button>
+            </div>
+
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+                ${allCredits.filter(c => activeCreditOwnerFilter==='ALL' || c.owner===activeCreditOwnerFilter).map(c => `
+                    <button onclick="selectCreditSubTab('${c.id}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cartoon-bounce ${activeCreditSubTab===c.id ? 'bg-amber-400 text-slate-950 shadow-md font-black' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'}">
+                        ${c.name}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    // Obter crédito ativo
+    const activeCredit = allCredits.find(c => c.id === activeCreditSubTab) || allCredits[0];
+    if (!activeCredit) return;
+
+    // Estatísticas do crédito ativo
+    let totalPago = 0, saldoPendente = activeCredit.total, mesesRestantes = activeCredit.months || 0;
+    let rawList = activeCredit.data || [];
+
+    if (rawList.length > 0) {
+        mesesRestantes = 0;
+        rawList.forEach(item => {
+            if (item.status === 'PAID') totalPago += (item.installment || 0);
+            else if (item.status === 'PENDING') mesesRestantes++;
+        });
+        const lastPaid = [...rawList].reverse().find(i => i.status === 'PAID');
+        saldoPendente = lastPaid ? lastPaid.balance : activeCredit.total;
+    } else if (activeCredit.remaining !== undefined) {
+        saldoPendente = activeCredit.remaining;
+        totalPago = Math.max(0, activeCredit.total - saldoPendente);
+    }
+
+    // Data alvo
+    const targetDate = `${selectedYear}-${String((selectedMonthIdx==='all'?new Date().getMonth():Number(selectedMonthIdx))+1).padStart(2,'0')}`;
+    const sourceItem = rawList.find(i => i.date && i.date.startsWith(targetDate));
+    const currentInst = sourceItem ? sourceItem.installment : (activeCredit.monthly || 0);
+    const balanceAfter = Math.max(0, saldoPendente - currentInst);
+    const isPaidThisMonth = sourceItem?.status === 'PAID';
+
+    // Montar HTML do ecrã
+    container.innerHTML = subNavHTML + `
+        <!-- 4 CARTOES KPI -->
+        <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-900/30">
+            <div class="card-bg p-3.5 rounded-2xl border border-slate-700/60 shadow-lg">
+                <div class="text-[11px] font-bold text-slate-400">Falta Pagar (Saldo)</div>
+                <div class="text-xl font-black text-rose-400 mt-1">${saldoPendente.toFixed(2)} €</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Saldo em dívida</div>
+            </div>
+            <div class="card-bg p-3.5 rounded-2xl border border-slate-700/60 shadow-lg">
+                <div class="text-[11px] font-bold text-slate-400">Valor Total Crédito 🏛️</div>
+                <div class="text-xl font-black text-amber-300 mt-1">${activeCredit.total.toFixed(2)} €</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Montante contratado</div>
+            </div>
+            <div class="card-bg p-3.5 rounded-2xl border border-slate-700/60 shadow-lg">
+                <div class="text-[11px] font-bold text-slate-400">Já Liquidado ✅</div>
+                <div class="text-xl font-black text-emerald-400 mt-1">${totalPago.toFixed(2)} €</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Total amortizado</div>
+            </div>
+            <div class="card-bg p-3.5 rounded-2xl border border-slate-700/60 shadow-lg">
+                <div class="text-[11px] font-bold text-slate-400">Meses Restantes</div>
+                <div class="text-xl font-black text-blue-400 mt-1">${mesesRestantes} Meses</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${activeCredit.endDate ? 'Término: ' + activeCredit.endDate : 'Previsão de fim'}</div>
+            </div>
+        </div>
+
+        <!-- CARTAO PRESTACAO DO MES COM BOTOES LIMPOS -->
+        <div class="p-5 border-y border-slate-800 bg-slate-950/40">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                        Prestação do mês selecionado (${targetDate}-01)
+                    </span>
+                    <div class="text-3xl font-black text-amber-300 mt-1">${currentInst.toFixed(2)} €</div>
+                    <p class="text-xs opacity-75 mt-0.5">
+                        Saldo Restante após prestação: <strong class="text-slate-100">${balanceAfter.toFixed(2)} €</strong>
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" onclick="openCreditAdjustModal('${activeCredit.id}')" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow">
+                        ⚖️ Acertar Saldo / Extra
+                    </button>
+                    <button type="button" onclick="toggleCreditPaidStatus('${activeCredit.id}', '${targetDate}')" class="px-4 py-2.5 ${isPaidThisMonth ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black'} rounded-xl shadow cartoon-bounce text-xs flex items-center gap-1.5">
+                        ${isPaidThisMonth ? '✅ Liquidado este Mês' : 'Marcar Prestação como Paga'}
+                    </button>
+                    ${rawList.length > 0 ? `
+                        <button type="button" onclick="toggleCreditTableWrapper()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold">
+                            📜 Histórico
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORICO COMPACTO -->
+        <div id="credit-history-table-wrapper" class="hidden overflow-x-auto p-4 bg-slate-900/20">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-950/80 text-[11px] uppercase border-b border-slate-800">
+                    <tr>
+                        <th class="p-2.5 text-slate-400">Data</th>
+                        <th class="p-2.5 text-slate-400 text-right">Prestação</th>
+                        <th class="p-2.5 text-slate-400 text-right">Saldo Restante</th>
+                        <th class="p-2.5 text-slate-400 text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/40">
+                    ${rawList.map(item => `
+                        <tr class="hover:bg-slate-800/20">
+                            <td class="p-2 text-slate-300 font-bold">${item.date}</td>
+                            <td class="p-2 text-right font-black text-slate-100">${(item.installment||0).toFixed(2)} €</td>
+                            <td class="p-2 text-right text-slate-300">${(item.balance||0).toFixed(2)} €</td>
+                            <td class="p-2 text-center">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status==='PAID'?'bg-emerald-500/20 text-emerald-400':'bg-rose-500/20 text-rose-400'}">
+                                    ${item.status==='PAID'?'PAGO':'PENDENTE'}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function selectCreditSubTab(id) {
+    activeCreditSubTab = id;
+    renderUnifiedCreditsScreen();
+}
+
+function setCreditOwnerFilter(owner) {
+    activeCreditOwnerFilter = owner;
+    renderUnifiedCreditsScreen();
+}
+
+function toggleCreditTableWrapper() {
+    const el = document.getElementById('credit-history-table-wrapper');
+    if (el) el.classList.toggle('hidden');
+}
+
+function toggleCreditPaidStatus(creditId, datePrefix) {
+    const standardMap = { casa: CREDIT_CASA_DATA, carro: CREDIT_CARRO_DATA, credito_ab: CREDIT_AB_DATA };
+    const list = standardMap[creditId];
+    if (list) {
+        const item = list.find(i => i.date && i.date.startsWith(datePrefix));
+        if (item) {
+            item.status = (item.status === 'PAID') ? 'PENDING' : 'PAID';
+        }
+    }
+    renderUnifiedCreditsScreen();
+}
+
+// Suporte para o botão + Adicionar nos Ganhos
+document.addEventListener('DOMContentLoaded', () => {
+    const addBtn = document.getElementById('r28-add');
+    if (addBtn) {
+        addBtn.addEventListener('click', (e) => {
+            const isGains = document.getElementById('r28-gains')?.getAttribute('aria-pressed') === 'true';
+            if (isGains) {
+                e.stopImmediatePropagation();
+                if (typeof openNewGainModal === 'function') openNewGainModal();
+                else if (typeof gainForm === 'function') gainForm(null);
+            }
+        }, true);
+    }
+});
 </script>
 
 </body>
