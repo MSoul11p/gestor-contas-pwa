@@ -1209,9 +1209,7 @@ body[data-r31] #r30-dialog{background:var(--r31-card);color:var(--r31-ink)}body[
     display: none !important;
 }
 /* Ocultar cabeçalho CATEGORIA / DESPESA */
-#table-header-row {
-    display: none !important;
-}
+/* table-header-row visible */
 /* Garantir que a cápsula fica limpa na vista geral */
 #period27 {
     display: inline-flex !important;
@@ -8404,38 +8402,257 @@ function handleCreateManualCredit(e) {
 </script>
 
 
+<style>
+/* Estilos modernos para a Visão do Ano e Créditos */
+.annual-month-card {
+    background: var(--surface, #1e293b);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 16px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.annual-month-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+#r30-gains, #r30-credit, .r30-panel {
+    display: none !important;
+}
+</style>
+
 <script>
+// ==========================================
+// R33: VISÃO DO ANO COM GRELHA DE 12 MESES
+// ==========================================
+function renderAnnualMonthsGrid() {
+    let grid = document.getElementById('annual-months-grid-container');
+    if (selectedMonthIdx !== 'all') {
+        if (grid) grid.remove();
+        return;
+    }
+
+    const target = document.getElementById('standard-table-container');
+    if (!target) return;
+
+    if (!grid) {
+        grid = document.createElement('div');
+        grid.id = 'annual-months-grid-container';
+        grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 p-4 bg-slate-900/40 rounded-2xl border border-slate-800 mb-4';
+        target.firstElementChild.after(grid);
+    }
+
+    grid.innerHTML = MONTHS.map((name, mIdx) => {
+        let mExp = 0, mInc = 0;
+        appData.accounts.forEach(acc => {
+            if (currentTab === 'semperfif') {
+                if (acc.payer !== 'SEMPERFIF') return;
+            } else if (currentTab === 'geral') {
+                if (acc.scope === 'semperfif') return;
+            } else if (['m','s'].includes(currentTab)) {
+                const who = currentTab.toUpperCase();
+                const p = parts10(acc, mIdx);
+                if (Number(p[who] || 0) <= 0) return;
+            }
+            const p = parts10(acc, mIdx);
+            Object.entries(p).forEach(([who, val]) => {
+                if (currentTab === 'm' && who !== 'M') return;
+                if (currentTab === 's' && who !== 'S') return;
+                mExp += Number(val || 0);
+            });
+        });
+
+        // Ganhos
+        if (currentTab === 'semperfif') {
+            mInc += Number(appData.ganhos?.semperfif?.[mIdx] || 0);
+        } else if (currentTab === 'geral') {
+            mInc += Number(appData.ganhos?.m?.[mIdx] || 0) + Number(appData.ganhos?.s?.[mIdx] || 0);
+        } else if (['m','s'].includes(currentTab)) {
+            mInc += Number(appData.ganhos?.[currentTab]?.[mIdx] || 0);
+        }
+
+        const mBal = mInc - mExp;
+        return `
+            <div onclick="selectAnnualMonth(${mIdx})" class="annual-month-card cartoon-bounce flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                    <span class="font-extrabold text-sm text-slate-100">${name}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full ${mBal >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'} font-black">
+                        ${mBal >= 0 ? '+ ' : ''}${mBal.toFixed(0)} €
+                    </span>
+                </div>
+                <div class="mt-2 text-[11px] space-y-0.5">
+                    <div class="flex justify-between text-emerald-400 font-bold">
+                        <span>Ganhos:</span><span>${mInc.toFixed(0)} €</span>
+                    </div>
+                    <div class="flex justify-between text-rose-400 font-bold">
+                        <span>Despesas:</span><span>${mExp.toFixed(0)} €</span>
+                    </div>
+                </div>
+                <div class="mt-2 pt-1 border-t border-slate-800 text-[10px] text-center text-slate-400 font-semibold">
+                    Clica para abrir ↗
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectAnnualMonth(mIdx) {
+    selectedMonthIdx = String(mIdx);
+    const mSelect = document.getElementById('month-select');
+    if (mSelect) mSelect.value = selectedMonthIdx;
+    renderApp();
+}
+
+// Injetar chamada na renderização da tabela
+const originalRenderStandardTable = renderStandardTable;
+renderStandardTable = function() {
+    originalRenderStandardTable.apply(this, arguments);
+    renderAnnualMonthsGrid();
+    adaptGainsToolbarAndFilters();
+};
+
+// ==========================================
+// R33: GANHOS ADAPTATIVOS COMO AS DESPESAS
+// ==========================================
+function adaptGainsToolbarAndFilters() {
+    const isGains = document.getElementById('r28-gains')?.getAttribute('aria-pressed') === 'true';
+    const filters = document.getElementById('r28-filters');
+    const addBtn = document.getElementById('r28-add');
+
+    if (filters) {
+        filters.hidden = false;
+        const buttons = filters.querySelectorAll('button');
+        if (buttons.length >= 4) {
+            buttons[0].textContent = 'Todos';
+            buttons[1].textContent = isGains ? 'Por receber' : 'Por pagar';
+            buttons[2].textContent = 'Separado';
+            buttons[3].textContent = isGains ? 'Completo' : 'Pago';
+        }
+    }
+
+    if (addBtn) {
+        addBtn.hidden = false;
+        addBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isGains) openNewGainModalCustom();
+            else openNewCategoryModal();
+        };
+    }
+}
+
+function openNewGainModalCustom() {
+    let modal = document.getElementById('modal-custom-new-gain');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-custom-new-gain';
+        modal.className = 'fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="font-bold text-lg text-emerald-400 flex items-center gap-2">
+                        💵 Novo Ganho
+                    </h3>
+                    <button class="text-slate-400 hover:text-white" onclick="document.getElementById('modal-custom-new-gain').remove()">✕</button>
+                </div>
+                <form class="space-y-3 text-xs" onsubmit="handleSaveCustomGain(event)">
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">Nome do Ganho:</label>
+                        <input id="gain-custom-name" required placeholder="Ex: Venda Loja, Evento, Prémio..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Valor (€):</label>
+                            <input type="number" step="0.01" id="gain-custom-amount" required placeholder="0.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-black outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Quem ganha?</label>
+                            <select id="gain-custom-owner" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                                <option value="BOTH">Dividido (50% M / 50% S)</option>
+                                <option value="M">Apenas M (🧔)</option>
+                                <option value="S">Apenas S (👩)</option>
+                                <option value="SEMPERFIF">Semperfif (🏪)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Dia do Ganho:</label>
+                            <input type="number" id="gain-custom-day" min="1" max="31" value="1" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Repetição:</label>
+                            <select id="gain-custom-repeat" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                                <option value="once">Só este mês</option>
+                                <option value="monthly">Todos os meses</option>
+                                <option value="yearly">Todos os anos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="pt-3 flex gap-2">
+                        <button type="button" class="w-1/2 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl" onclick="document.getElementById('modal-custom-new-gain').remove()">Cancelar</button>
+                        <button type="submit" class="w-1/2 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl shadow">Criar Ganho</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.append(modal);
+    }
+}
+
+function handleSaveCustomGain(e) {
+    e.preventDefault();
+    const name = document.getElementById('gain-custom-name').value.trim();
+    const amount = parseFloat(document.getElementById('gain-custom-amount').value);
+    const owner = document.getElementById('gain-custom-owner').value;
+    const day = parseInt(document.getElementById('gain-custom-day').value, 10);
+    const repeat = document.getElementById('gain-custom-repeat').value;
+
+    appData.extraGains30 ||= [];
+    appData.extraGains30.push({
+        id: 'gain_' + Date.now(),
+        description: name,
+        amount: amount,
+        owner: owner,
+        day: day,
+        date: `${selectedYear}-${String((selectedMonthIdx==='all'?new Date().getMonth():Number(selectedMonthIdx))+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`,
+        repeat: repeat,
+        deleted: false
+    });
+
+    saveDataToLocalStorage();
+    document.getElementById('modal-custom-new-gain')?.remove();
+    renderApp();
+    alert('Ganho adicionado com sucesso!');
+}
+
 // ==========================================
 // R33: ABA UNIFICADA DE CRÉDITOS E DÍVIDAS
 // ==========================================
-let activeCreditSubTab = 'carro'; // 'casa', 'carro', 'credito_ab', ou ID de manual
-let activeCreditOwnerFilter = 'ALL'; // 'ALL', 'M', 'S', 'BOTH'
+let activeCreditSubTab = 'carro';
+let activeCreditOwnerFilter = 'ALL';
 
 function renderUnifiedCreditsScreen() {
     const container = document.getElementById('credit-container');
     if (!container) return;
 
-    // Lista de créditos predefinidos
     const standardCredits = [
         { id: 'carro', name: '🚘 Crédito Carro', owner: 'M', total: 17625.00, monthly: 200.00, data: CREDIT_CARRO_DATA },
         { id: 'casa', name: '🏠 Crédito Casa', owner: 'BOTH', total: 6000.00, monthly: 200.00, data: CREDIT_CASA_DATA },
         { id: 'credito_ab', name: '💳 Crédito AB', owner: 'M', total: 5314.04, monthly: 248.61, data: CREDIT_AB_DATA }
     ];
 
-    // Obter créditos manuais guardados em appData ou localStorage
     let manualCredits = [];
     try {
         manualCredits = JSON.parse(localStorage.getItem('contas_manual_credits_v1') || '[]');
     } catch(e) { manualCredits = []; }
 
     const allCredits = [...standardCredits, ...manualCredits];
-
-    // Se a aba ativa não existir, seleciona a primeira
     if (!allCredits.some(c => c.id === activeCreditSubTab)) {
         activeCreditSubTab = allCredits[0]?.id || 'carro';
     }
 
-    // Calcular totais globais
     let globalFalta = 0, globalTotal = 0, globalPago = 0, globalMensal = 0;
     allCredits.forEach(c => {
         let saldo = c.total, pago = 0;
@@ -8455,7 +8672,6 @@ function renderUnifiedCreditsScreen() {
         globalMensal += (c.monthly || 0);
     });
 
-    // Sub-navegação e seletor
     let subNavHTML = `
         <div class="p-4 border-b border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -8471,7 +8687,6 @@ function renderUnifiedCreditsScreen() {
             </button>
         </div>
 
-        <!-- Filtro por Titular e Pílulas de Créditos -->
         <div class="px-4 py-3 bg-slate-950/40 border-b border-slate-800/80 flex flex-col gap-2.5">
             <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
                 <span class="text-[11px] font-bold text-slate-400">Titular:</span>
@@ -8491,11 +8706,9 @@ function renderUnifiedCreditsScreen() {
         </div>
     `;
 
-    // Obter crédito ativo
     const activeCredit = allCredits.find(c => c.id === activeCreditSubTab) || allCredits[0];
     if (!activeCredit) return;
 
-    // Estatísticas do crédito ativo
     let totalPago = 0, saldoPendente = activeCredit.total, mesesRestantes = activeCredit.months || 0;
     let rawList = activeCredit.data || [];
 
@@ -8512,16 +8725,13 @@ function renderUnifiedCreditsScreen() {
         totalPago = Math.max(0, activeCredit.total - saldoPendente);
     }
 
-    // Data alvo
     const targetDate = `${selectedYear}-${String((selectedMonthIdx==='all'?new Date().getMonth():Number(selectedMonthIdx))+1).padStart(2,'0')}`;
     const sourceItem = rawList.find(i => i.date && i.date.startsWith(targetDate));
     const currentInst = sourceItem ? sourceItem.installment : (activeCredit.monthly || 0);
     const balanceAfter = Math.max(0, saldoPendente - currentInst);
     const isPaidThisMonth = sourceItem?.status === 'PAID';
 
-    // Montar HTML do ecrã
     container.innerHTML = subNavHTML + `
-        <!-- 4 CARTOES KPI -->
         <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-900/30">
             <div class="card-bg p-3.5 rounded-2xl border border-slate-700/60 shadow-lg">
                 <div class="text-[11px] font-bold text-slate-400">Falta Pagar (Saldo)</div>
@@ -8545,7 +8755,6 @@ function renderUnifiedCreditsScreen() {
             </div>
         </div>
 
-        <!-- CARTAO PRESTACAO DO MES COM BOTOES LIMPOS -->
         <div class="p-5 border-y border-slate-800 bg-slate-950/40">
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
@@ -8574,7 +8783,6 @@ function renderUnifiedCreditsScreen() {
             </div>
         </div>
 
-        <!-- HISTORICO COMPACTO -->
         <div id="credit-history-table-wrapper" class="hidden overflow-x-auto p-4 bg-slate-900/20">
             <table class="w-full text-left text-xs border-collapse">
                 <thead class="bg-slate-950/80 text-[11px] uppercase border-b border-slate-800">
@@ -8630,21 +8838,6 @@ function toggleCreditPaidStatus(creditId, datePrefix) {
     }
     renderUnifiedCreditsScreen();
 }
-
-// Suporte para o botão + Adicionar nos Ganhos
-document.addEventListener('DOMContentLoaded', () => {
-    const addBtn = document.getElementById('r28-add');
-    if (addBtn) {
-        addBtn.addEventListener('click', (e) => {
-            const isGains = document.getElementById('r28-gains')?.getAttribute('aria-pressed') === 'true';
-            if (isGains) {
-                e.stopImmediatePropagation();
-                if (typeof openNewGainModal === 'function') openNewGainModal();
-                else if (typeof gainForm === 'function') gainForm(null);
-            }
-        }, true);
-    }
-});
 </script>
 
 </body>
