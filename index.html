@@ -8427,6 +8427,8 @@ function handleCreateManualCredit(e) {
 // R33: VISÃO DO ANO COM GRELHA DE 12 MESES
 // ==========================================
 function renderAnnualMonthsGrid() {
+    document.getElementById('annual-months-grid-container')?.remove();
+    return;
     let grid = document.getElementById('annual-months-grid-container');
     if (selectedMonthIdx !== 'all') {
         if (grid) grid.remove();
@@ -8874,6 +8876,7 @@ html:not(.dark) #credit-container thead{background:#e2e8f0!important}
 .settings-panel details:nth-of-type(3){border-left-color:#0ea5e9;background:rgba(14,165,233,.08)}
 .settings-panel details:nth-of-type(4){border-left-color:#f59e0b;background:rgba(245,158,11,.08)}
 .settings-panel button{border-radius:12px}
+#r30-gains:not([hidden]){display:block!important}
 </style>
 
 <script id="r34">
@@ -8898,8 +8901,36 @@ loadC();
 const _t=window.toggleCreditPaidStatus;window.toggleCreditPaidStatus=function(){_t.apply(this,arguments);saveC();};
 const _h=window.handleCreditAdjust;window.handleCreditAdjust=function(){const r=_h.apply(this,arguments);saveC();try{saveDataToLocalStorage();}catch(e){}return r;};
 // Na aba Créditos os cartões de topo não fazem sentido
-const _ra=window.renderApp;window.renderApp=function(){const r=_ra.apply(this,arguments);const k=$('kpi-panel');if(k)k.style.display=['creditos','casa','carro','credito_ab'].includes(currentTab)?'none':'';return r;};
-const go=()=>{['r28-gains','r28-expenses'].forEach(id=>$(id)?.addEventListener('click',()=>adaptGainsToolbarAndFilters()));adaptGainsToolbarAndFilters();};
+const _ra=window.renderApp;window.renderApp=function(){const r=_ra.apply(this,arguments);paintGroups();const k=$('kpi-panel');if(k)k.style.display=['creditos','casa','carro','credito_ab'].includes(currentTab)?'none':'';return r;};
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const GK='contas_group_colors_v34',PAL=['#f9a8d4','#fcd34d','#86efac','#7dd3fc','#c4b5fd','#fdba74','#5eead4','#fda4af'];
+const gc=()=>{try{return JSON.parse(localStorage.getItem(GK)||'{}');}catch(e){return {};}};
+const lum=(r,g,b)=>(r*299+g*587+b*114)/1000;
+const inkHex=h=>{const n=parseInt(h.slice(1),16);return lum(n>>16,n>>8&255,n&255)>150?'#1e293b':'#fff';};
+const hash=t=>[...t].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
+function paintGroups(){
+  const m=gc(),known=(typeof groupPastels!=='undefined')?groupPastels:{};
+  document.querySelectorAll('#table-body td[colspan]').forEach(td=>{
+    const n=td.textContent.trim();if(!n)return;
+    const col=m[n]||(known[n]?null:PAL[hash(n)%PAL.length]);
+    if(col){td.style.setProperty('background',col,'important');td.style.setProperty('color',inkHex(col),'important');return;}
+    const v=(getComputedStyle(td).backgroundColor.match(/[\d.]+/g)||[]).map(Number);
+    if(v.length>=3&&(v[3]===undefined||v[3]>=.6))td.style.setProperty('color',lum(v[0],v[1],v[2])>150?'#1e293b':'#fff','important');
+  });
+}
+function syncView(){const s=$('settings-view');if(!s)return;const w=s.closest('label');if(w)w.style.display='none';
+  if([...s.options].some(o=>o.value===currentTab)){s.value=currentTab;s.dispatchEvent(new Event('change'));}}
+function buildCats(){
+  const p=document.querySelector('#settings-modal .settings-panel')||$('settings-modal');if(!p)return;
+  let d=$('r34-cats');if(!d){d=document.createElement('details');d.id='r34-cats';p.append(d);}
+  const names=[...new Set(((typeof appData!=='undefined'&&appData)?appData.accounts:[]).map(a=>a.group).filter(Boolean))],m=gc();
+  d.innerHTML='<summary>🎨 Cores das categorias</summary><p style="font-size:12px;opacity:.8">Escolhe a cor de cada categoria. Fica guardada neste navegador.</p>'+
+    names.map(n=>'<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0"><span>'+esc(n)+'</span><input type="color" data-g="'+esc(n)+'" value="'+(m[n]||'#cccccc')+'"></label>').join('')+
+    '<button type="button" id="r34-cats-reset">Repor cores</button>';
+  d.querySelectorAll('input[type=color]').forEach(i=>i.oninput=()=>{const x=gc();x[i.dataset.g]=i.value;localStorage.setItem(GK,JSON.stringify(x));paintGroups();});
+  $('r34-cats-reset').onclick=()=>{localStorage.removeItem(GK);buildCats();renderApp();};
+}
+const go=()=>{['r28-gains','r28-expenses'].forEach(id=>$(id)?.addEventListener('click',()=>adaptGainsToolbarAndFilters()));adaptGainsToolbarAndFilters();syncView();$('settings-open')?.addEventListener('click',()=>{syncView();buildCats();});paintGroups();};
 document.readyState==='loading'?addEventListener('DOMContentLoaded',go):go();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();
