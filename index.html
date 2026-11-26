@@ -6713,8 +6713,8 @@ html.dark .r27-danger button {
             $('r28-search').value = state.query;
             $('r28-expenses').setAttribute('aria-pressed', String(state.mode === 'expenses'));
             $('r28-gains').setAttribute('aria-pressed', String(state.mode === 'gains'));
-            $('r28-filters').hidden = state.mode === 'gains';
-            $('r28-add').hidden = state.mode === 'gains';
+            $('r28-filters').hidden = false;
+            $('r28-add').hidden = false;
             for (const button of $('r28-filters').querySelectorAll('button')) {
                 button.setAttribute('aria-pressed', String(button.dataset.status === state.status));
             }
@@ -8220,7 +8220,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     bindLogoEffect();
-    setInterval(bindLogoEffect, 1000);
+    [300,1500,4000].forEach(t=>setTimeout(bindLogoEffect,t));
 });
 </script>
 
@@ -8472,6 +8472,7 @@ function renderAnnualMonthsGrid() {
             mInc += Number(appData.ganhos?.[currentTab]?.[mIdx] || 0);
         }
 
+        (appData.extraGains30||[]).forEach(g=>{if(g.deleted)return;const d=String(g.date||'');if(Number(d.slice(0,4))!==Number(selectedYear)||Number(d.slice(5,7))-1!==mIdx)return;const o=g.owner,t=currentTab;const ok=t==='geral'||(t==='semperfif'?o==='SEMPERFIF':t==='m'?(o==='M'||o==='BOTH'):(o==='S'||o==='BOTH'));if(!ok)return;mInc+=(o==='BOTH'&&(t==='m'||t==='s'))?Number(g.amount)/2:Number(g.amount);});
         const mBal = mInc - mExp;
         return `
             <div onclick="selectAnnualMonth(${mIdx})" class="annual-month-card cartoon-bounce flex flex-col justify-between">
@@ -8648,6 +8649,7 @@ function renderUnifiedCreditsScreen() {
         manualCredits = JSON.parse(localStorage.getItem('contas_manual_credits_v1') || '[]');
     } catch(e) { manualCredits = []; }
 
+    standardCredits.forEach(c=>{const f=c.data&&c.data[0];if(f&&!(Number(f.installment)>0)&&Number(f.balance)>0)c.total=Number(f.balance);});
     const allCredits = [...standardCredits, ...manualCredits];
     if (!allCredits.some(c => c.id === activeCreditSubTab)) {
         activeCreditSubTab = allCredits[0]?.id || 'carro';
@@ -8661,7 +8663,7 @@ function renderUnifiedCreditsScreen() {
                 if (item.status === 'PAID') pago += (item.installment || 0);
             });
             const lastPaid = [...c.data].reverse().find(i => i.status === 'PAID');
-            saldo = lastPaid ? lastPaid.balance : c.total;
+            saldo = lastPaid ? lastPaid.balance : c.total; pago = Math.max(0, c.total - saldo);
         } else if (c.remaining !== undefined) {
             saldo = c.remaining;
             pago = Math.max(0, c.total - saldo);
@@ -8719,7 +8721,7 @@ function renderUnifiedCreditsScreen() {
             else if (item.status === 'PENDING') mesesRestantes++;
         });
         const lastPaid = [...rawList].reverse().find(i => i.status === 'PAID');
-        saldoPendente = lastPaid ? lastPaid.balance : activeCredit.total;
+        saldoPendente = lastPaid ? lastPaid.balance : activeCredit.total; totalPago = Math.max(0, activeCredit.total - saldoPendente);
     } else if (activeCredit.remaining !== undefined) {
         saldoPendente = activeCredit.remaining;
         totalPago = Math.max(0, activeCredit.total - saldoPendente);
@@ -8751,7 +8753,7 @@ function renderUnifiedCreditsScreen() {
             <div class="card-bg p-3.5 rounded-2xl border border-slate-700/60 shadow-lg">
                 <div class="text-[11px] font-bold text-slate-400">Meses Restantes</div>
                 <div class="text-xl font-black text-blue-400 mt-1">${mesesRestantes} Meses</div>
-                <div class="text-[10px] text-slate-400 mt-0.5">${activeCredit.endDate ? 'Término: ' + activeCredit.endDate : 'Previsão de fim'}</div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${activeCredit.endDate ? 'Término: ' + activeCredit.endDate : (Math.abs(Math.ceil(saldoPendente/(activeCredit.monthly||1))-mesesRestantes)>1 ? '⚠ saldo÷prestação = '+Math.ceil(saldoPendente/(activeCredit.monthly||1))+' meses — confirma o plano' : 'Previsão de fim')}</div>
             </div>
         </div>
 
@@ -8801,7 +8803,7 @@ function renderUnifiedCreditsScreen() {
                             <td class="p-2 text-right text-slate-300">${(item.balance||0).toFixed(2)} €</td>
                             <td class="p-2 text-center">
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status==='PAID'?'bg-emerald-500/20 text-emerald-400':'bg-rose-500/20 text-rose-400'}">
-                                    ${item.status==='PAID'?'PAGO':'PENDENTE'}
+                                    ${item.status==='PAID'?'PAGO':item.status==='BEGINNING'?'INÍCIO':'PENDENTE'}
                                 </span>
                             </td>
                         </tr>
@@ -8840,5 +8842,67 @@ function toggleCreditPaidStatus(creditId, datePrefix) {
 }
 </script>
 
+
+<style id="r34-css">
+body.theme-geral{--ac:#10b981}body.theme-m{--ac:#3b82f6}body.theme-s{--ac:#ec4899}body.theme-semperfif{--ac:#8b5cf6}body.theme-casa{--ac:#f97316}body.theme-carro{--ac:#06b6d4}body.theme-credito_ab{--ac:#6366f1}
+/* hover do menu legível */
+#glass-dock .nav-tab-btn:hover{color:#fff!important}
+/* filtros com as cores dos cartões */
+#r28-filters button[data-status=PENDING]{border-color:#e11d48!important;color:#e11d48!important}
+#r28-filters button[data-status=SEPARATED]{border-color:#d97706!important;color:#b45309!important}
+#r28-filters button[data-status=PAID]{border-color:#059669!important;color:#047857!important}
+#r28-filters button[aria-pressed=true][data-status=PENDING]{background:#e11d48!important;color:#fff!important}
+#r28-filters button[aria-pressed=true][data-status=SEPARATED]{background:#f59e0b!important;color:#1f2937!important}
+#r28-filters button[aria-pressed=true][data-status=PAID]{background:#10b981!important;color:#04251a!important}
+#r28-filters button:disabled{opacity:.4;cursor:not-allowed}
+/* modo claro: tirar as faixas/cartões escuros */
+html:not(.dark) .r28-section-head,html:not(.dark) #credit-container{background:color-mix(in srgb,var(--ac,#6366f1) 12%,#fff)!important;color:#1e293b!important}
+html:not(.dark) #annual-months-grid-container{background:rgba(255,255,255,.65)!important;border-color:rgba(100,116,139,.25)!important}
+html:not(.dark) .annual-month-card{background:#fff!important}
+html:not(.dark) .annual-month-card .text-slate-100,html:not(.dark) #credit-container [class*="text-slate-100"],html:not(.dark) #credit-container [class*="text-slate-200"],html:not(.dark) #credit-container [class*="text-slate-300"]{color:#1e293b!important}
+html:not(.dark) #credit-container [class*="text-slate-400"],html:not(.dark) .annual-month-card .text-slate-400{color:#64748b!important}
+html:not(.dark) #credit-container [class*="bg-slate-9"]{background:rgba(255,255,255,.7)!important}
+html:not(.dark) #credit-container [class*="bg-slate-8"]{background:#e2e8f0!important}
+html:not(.dark) #credit-container [class*="border-slate"],html:not(.dark) .annual-month-card [class*="border-slate"]{border-color:rgba(100,116,139,.25)!important}
+html:not(.dark) #credit-container thead{background:#e2e8f0!important}
+/* definições mais coloridas */
+.settings-panel{border-radius:22px!important}
+.settings-panel details{border-radius:16px;border:1px solid rgba(148,163,184,.3);margin:10px 0;overflow:hidden;border-left-width:6px}
+.settings-panel details>summary{padding:12px 14px;font-weight:800;cursor:pointer}
+.settings-panel details:nth-of-type(1){border-left-color:#8b5cf6;background:rgba(139,92,246,.08)}
+.settings-panel details:nth-of-type(2){border-left-color:#10b981;background:rgba(16,185,129,.08)}
+.settings-panel details:nth-of-type(3){border-left-color:#0ea5e9;background:rgba(14,165,233,.08)}
+.settings-panel details:nth-of-type(4){border-left-color:#f59e0b;background:rgba(245,158,11,.08)}
+.settings-panel button{border-radius:12px}
+</style>
+
+<script id="r34">
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const gainsOn=()=>$('r28-gains')?.getAttribute('aria-pressed')==='true';
+// Filtros com os mesmos nomes dos cartões; + Adicionar adapta-se ao modo
+window.adaptGainsToolbarAndFilters=function(){
+  const g=gainsOn(),f=$('r28-filters'),a=$('r28-add'),L=['Todos','Por pagar','Separado','Pago'];
+  if(f){f.hidden=false;f.querySelectorAll('button').forEach((b,i)=>{if(L[i])b.textContent=L[i];const off=g&&i>0;b.disabled=off;b.title=off?'Os ganhos ainda não têm estado individual':'';});}
+  if(a){a.hidden=false;a.onclick=e=>{e.preventDefault();e.stopPropagation();g?openNewGainModalCustom():openNewCategoryModal();};}
+};
+// Ganhos novos: usa o formulário validado da R30 (o painel R30 está oculto por CSS, mas o botão funciona)
+window.openNewGainModalCustom=function(){const b=document.querySelector('#r30-gain-actions button');if(b)b.click();else alert('O formulário de ganhos ainda não carregou. Recarrega a página.');};
+// Créditos: persistir estados e acertos
+const CK='contas_credits_v34',CR={};
+try{CR.carro=CREDIT_CARRO_DATA;CR.casa=CREDIT_CASA_DATA;CR.credito_ab=CREDIT_AB_DATA;}catch(e){}
+const base={};Object.entries(CR).forEach(([k,a])=>(a||[]).forEach(r=>base[k+'|'+r.date]=r.status+'|'+r.balance));
+function loadC(){try{const s=JSON.parse(localStorage.getItem(CK)||'{}');Object.entries(CR).forEach(([k,a])=>(a||[]).forEach(r=>{const v=s[k+'|'+r.date];if(v){r.status=v[0];r.balance=v[1];}}));}catch(e){}}
+function saveC(){try{const s={};Object.entries(CR).forEach(([k,a])=>(a||[]).forEach(r=>{const key=k+'|'+r.date;if(base[key]!==r.status+'|'+r.balance)s[key]=[r.status,r.balance];}));localStorage.setItem(CK,JSON.stringify(s));}catch(e){}}
+loadC();
+const _t=window.toggleCreditPaidStatus;window.toggleCreditPaidStatus=function(){_t.apply(this,arguments);saveC();};
+const _h=window.handleCreditAdjust;window.handleCreditAdjust=function(){const r=_h.apply(this,arguments);saveC();try{saveDataToLocalStorage();}catch(e){}return r;};
+// Na aba Créditos os cartões de topo não fazem sentido
+const _ra=window.renderApp;window.renderApp=function(){const r=_ra.apply(this,arguments);const k=$('kpi-panel');if(k)k.style.display=['creditos','casa','carro','credito_ab'].includes(currentTab)?'none':'';return r;};
+const go=()=>{['r28-gains','r28-expenses'].forEach(id=>$(id)?.addEventListener('click',()=>adaptGainsToolbarAndFilters()));adaptGainsToolbarAndFilters();};
+document.readyState==='loading'?addEventListener('DOMContentLoaded',go):go();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+})();
+</script>
 </body>
 </html>
