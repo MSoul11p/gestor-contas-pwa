@@ -7342,7 +7342,7 @@ var ContasCore30 = (function () {
             Number(g.date.slice(0,4)) === Number(selectedYear) &&
             (selectedMonthIdx === 'all' || Number(g.date.slice(5,7))-1 === Number(selectedMonthIdx)) &&
             (showRemoved || !g.deleted) && (!query || fold(g.description).includes(query)) &&
-            (currentTab==='geral' ? g.owner!=='SEMPERFIF' : Object.hasOwn(C.allocated(g.amount,g.owner),currentTab==='semperfif'?'SEMPERFIF':currentTab.toUpperCase()))
+            (currentTab==='geral' || Object.hasOwn(C.allocated(g.amount,g.owner),currentTab==='semperfif'?'SEMPERFIF':currentTab.toUpperCase()))
         ).slice().sort((a,b) => b.date.localeCompare(a.date));
         visible.forEach(g => {
             const entry = document.createElement('div'); entry.className='r30-entry'; entry.dataset.void=String(g.deleted);
@@ -7681,10 +7681,10 @@ var ContasCore30 = (function () {
         $('r30-show-removed').onchange=paintGains;
         const credits=document.createElement('section');credits.id='r30-credit';credits.className='r30-panel';credits.hidden=true;$('credit-current-month-box').after(credits);
         const settings=document.createElement('details');settings.className='r30-panel';
-        settings.innerHTML='<summary>Animações e som</summary><label for="r30-motion">Movimento</label><select id="r30-motion"><option value="full">Completo — bouncy</option><option value="reduced">Discreto</option><option value="off">Desligado</option></select><label><input id="r30-sound" type="checkbox"> Ativar som (independente das animações)</label><button type="button" id="r30-sound-test" class="r30-primary" style="margin-top:10px">Testar som</button><p>Preferências locais. A opção de movimento reduzido do dispositivo tem prioridade. A confirmação de gravação continua sempre visível.</p>';
+        settings.innerHTML='<summary>Animações e som</summary><label for="r30-motion">Movimento</label><select id="r30-motion"><option value="full">Completo — bouncy</option><option value="reduced">Discreto</option><option value="off">Desligado</option></select><label><input id="r30-sound" type="checkbox"> Ativar som (independente das animações)</label><p>Preferências locais. A opção de movimento reduzido do dispositivo tem prioridade. A confirmação de gravação continua sempre visível.</p>';
         document.querySelector('#settings-modal .settings-panel')?.append(settings);
         function saveEffects(){prefs.motion=$('r30-motion').value;prefs.sound=$('r30-sound').checked;try{localStorage.setItem('contas_ms_effects30',JSON.stringify(prefs));}catch(_){}applyEffects();}
-        $('r30-motion').onchange=$('r30-sound').onchange=saveEffects;$('r30-sound-test').onclick=()=>{if(!$('r30-sound').checked){$('r30-sound').checked=true;saveEffects();}try{playSoundForStatus('PAID');}catch(e){notify('O navegador não conseguiu iniciar o áudio: '+e.message,false);}};applyEffects();reduced.addEventListener?.('change',applyEffects);
+        $('r30-motion').onchange=$('r30-sound').onchange=saveEffects;applyEffects();reduced.addEventListener?.('change',applyEffects);
         const sound=playSoundForStatus;
         playSoundForStatus=function(){if(prefs.sound===true)return sound.apply(this,arguments);};
         // Não festejar operações financeiras antes da confirmação de sincronização.
@@ -7935,7 +7935,7 @@ var ContasCore31 = (function () {
         const baseRows=baseKeys.filter(w=>!q||fold('Ordenado '+w+' ganhos existentes').includes(q));
         if(baseRows.length){html+='<div class="r31-group" style="--group-color:#dfefe2">Ganhos existentes</div>'+baseRows.map(w=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+(w==='semperfif'?'Ganhos Semperfif':'Ordenado '+w.toUpperCase())+'</div><div class="r31-muted">'+(Number(selectedYear)<=2027?'Valor legado preservado; editar cria um valor apenas neste ano/mês.':'Sem cópia automática de anos antigos.')+'</div></div><button class="r31-pill" onclick="ContasR31.legacy(\''+w+'\')">'+euro(periods().reduce((n,m)=>n+G.legacy(appData,selectedYear,m,w),0))+'</button></div>').join('');}
         const items=(appData.extraGains30||[]).filter(g=>{
-            if(currentTab==='geral'&&g.owner==='SEMPERFIF'||currentTab==='semperfif'&&g.owner!=='SEMPERFIF'||['m','s'].includes(currentTab)&&!periods().some(m=>Object.hasOwn(G.parts(g,selectedYear,m),currentTab.toUpperCase())))return false;
+            if(currentTab==='geral'&&g.owner==='SEMPERFIF'||currentTab==='semperfif'&&g.owner!=='SEMPERFIF'||['m','s'].includes(currentTab)&&!Object.hasOwn(G.parts(g,selectedYear,activeMonth()),currentTab.toUpperCase()))return false;
             const probe=s.removed?{...g,deleted:false,excludedYears31:{},excludedMonths31:{}}:g;
             return periods().some(m=>G.occurs(probe,selectedYear,m))&&(!q||fold(g.description+' '+g.category31).includes(q));
         });
@@ -8066,7 +8066,7 @@ var ContasCore31 = (function () {
         const t=appData.creditTools30,items=keys.map(k=>({id:k,name:names[k],owner:creditOwner(k),model:C.project(creditRows(k),t,k,today()),monthly:t?.configs?.[k]?.monthly||0,end:t?.configs?.[k]?.end||null,standard:true})).concat((appData.debts31||[]).map(d=>({id:d.id,name:d.name,owner:d.owner,model:G.debtProject(appData,d,today()),monthly:d.monthly,end:d.end})));
         const visible=items.filter(i=>debtFilter==='ALL'||i.owner===debtFilter),configured=visible.filter(i=>i.model.configured),sum=configured.reduce((s,i)=>s+i.model.remaining,0),monthly=visible.reduce((s,i)=>s+C.cents(i.monthly),0),total=configured.reduce((s,i)=>s+i.model.original,0);
         const missing=visible.filter(i=>!i.model.configured).length,unknown=configured.filter(i=>i.model.remaining>0&&!i.model.estimate).length,dates=configured.map(i=>i.model.estimate).filter(Boolean).sort();
-        return '<div class="r31-stack"><div class="r31-row r31-between r31-wrap"><div><h2>Dívidas</h2><p class="r31-muted">Referência atual: '+fmt(today())+' · valores partilhados contados uma única vez</p></div><div class="r31-row r31-wrap">'+button('+ Adicionar dívida','ContasR31.newDebt()',false)+button('+ Crédito manual','openNewCreditModal()',false)+'</div></div><div class="r31-grid"><div class="r31-card"><span class="r31-muted">Total por pagar'+(missing?' · parcial':'')+'</span><div class="r31-big">'+euro(sum)+'</div></div><div class="r31-card"><span class="r31-muted">Prestações mensais definidas</span><div class="r31-big">'+euro(monthly)+'</div></div><div class="r31-card"><span class="r31-muted">Total dos planos / referências</span><strong>'+euro(total)+'</strong></div><div class="r31-card"><span class="r31-muted">Conclusão do conjunto · estimativa</span><strong>'+(missing||unknown?'Por confirmar':dates.length?fmt(dates.at(-1)):'Sem dívida configurada por pagar')+'</strong></div></div>'+(missing?'<p class="r31-note">Há '+missing+' créditos sem plano definido. O total é parcial; não inclui saldos por confirmar.</p>':'')+'<div class="r31-filters">'+[['ALL','Todos'],['M','M'],['S','S'],['BOTH','Ambos']].map(([k,l])=>'<button class="r31-filter" aria-pressed="'+(debtFilter===k)+'" onclick="ContasR31.debtFilter(\''+k+'\')">'+l+'</button>').join('')+'</div>'+visible.map(i=>'<button type="button" class="r31-card" style="text-align:left;width:100%;cursor:pointer" onclick="'+(i.standard?'switchTab(\''+i.id+'\')':'ContasR31.debt(\''+i.id+'\')')+'"><div class="r31-row r31-between"><h2>'+esc(i.name)+'</h2><span>›</span></div><p class="r31-muted">'+(i.owner==='BOTH'?'Ambos':i.owner||'Titular por confirmar')+'</p><div class="r31-grid" style="margin-top:14px"><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(i.monthly))+'</strong></div><div><span class="r31-muted">Falta pagar</span><strong>'+(i.model.configured?euro(i.model.remaining):'Por definir')+'</strong></div></div><p class="r31-muted" style="margin-top:12px">'+(i.model.configured?(i.model.remainingMonths===null?'Prazo por confirmar':i.model.remainingMonths+' prestações equivalentes')+' · '+(i.model.remaining===0?'Liquidado':fmt(i.model.estimate)):'Abre o crédito e confirma o plano.')+'</p></button>').join('')+'</div>';
+        return '<div class="r31-stack"><div class="r31-row r31-between"><div><h2>Dívidas</h2><p class="r31-muted">Referência atual: '+fmt(today())+' · valores partilhados contados uma única vez</p></div>'+button('+ Adicionar','ContasR31.newDebt()',false)+'</div><div class="r31-grid"><div class="r31-card"><span class="r31-muted">Total por pagar'+(missing?' · parcial':'')+'</span><div class="r31-big">'+euro(sum)+'</div></div><div class="r31-card"><span class="r31-muted">Prestações mensais definidas</span><div class="r31-big">'+euro(monthly)+'</div></div><div class="r31-card"><span class="r31-muted">Total dos planos / referências</span><strong>'+euro(total)+'</strong></div><div class="r31-card"><span class="r31-muted">Conclusão do conjunto · estimativa</span><strong>'+(missing||unknown?'Por confirmar':dates.length?fmt(dates.at(-1)):'Sem dívida configurada por pagar')+'</strong></div></div>'+(missing?'<p class="r31-note">Há '+missing+' créditos sem plano definido. O total é parcial; não inclui saldos por confirmar.</p>':'')+'<div class="r31-filters">'+[['ALL','Todos'],['M','M'],['S','S'],['BOTH','Ambos']].map(([k,l])=>'<button class="r31-filter" aria-pressed="'+(debtFilter===k)+'" onclick="ContasR31.debtFilter(\''+k+'\')">'+l+'</button>').join('')+'</div>'+visible.map(i=>'<button type="button" class="r31-card" style="text-align:left;width:100%;cursor:pointer" onclick="'+(i.standard?'switchTab(\''+i.id+'\')':'ContasR31.debt(\''+i.id+'\')')+'"><div class="r31-row r31-between"><h2>'+esc(i.name)+'</h2><span>›</span></div><p class="r31-muted">'+(i.owner==='BOTH'?'Ambos':i.owner||'Titular por confirmar')+'</p><div class="r31-grid" style="margin-top:14px"><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(i.monthly))+'</strong></div><div><span class="r31-muted">Falta pagar</span><strong>'+(i.model.configured?euro(i.model.remaining):'Por definir')+'</strong></div></div><p class="r31-muted" style="margin-top:12px">'+(i.model.configured?(i.model.remainingMonths===null?'Prazo por confirmar':i.model.remainingMonths+' prestações equivalentes')+' · '+(i.model.remaining===0?'Liquidado':fmt(i.model.estimate)):'Abre o crédito e confirma o plano.')+'</p></button>').join('')+'</div>';
     }
     function newDebt(){
         const candidates=appData.accounts.filter(a=>a.payer!=='SEMPERFIF'&&!a.creditMovement30&&!a.debtMovement31&&!a.debt31&&!['1','11','16'].includes(String(a.id)));
@@ -8187,6 +8187,7 @@ var ContasCore31 = (function () {
             d.innerHTML='<div style="padding:18px;"><div class="r31-row r31-between" style="margin-bottom:14px;"><h2 id="r31-dialog-title" style="font-size:16px;font-weight:750;">Escolher período</h2><button class="r31-close" type="button" aria-label="Fechar" onclick="ContasR31.close()">×</button></div>'+htmlYears+htmlMonths+'</div>';
             d.showModal();
         },
+        'month','required min="1900-01" max="2200-12"'),()=>{const[y,m]=$('r31-period-input').value.split('-').map(Number);selectedYear=y;selectedMonthIdx=m-1;$('month-select').value=selectedMonthIdx;$('year-select').value=y;renderApp();}),
         history:k=>guarded(()=>history(k)),audit:k=>guarded(()=>audit(k)),debtFilter:f=>{debtFilter=f;paint();},newDebt:()=>guarded(()=>{editable();newDebt();}),debt:id=>guarded(()=>customDetail(id)),debtPayment:id=>guarded(()=>debtPayment(id)),customExtra:id=>guarded(()=>customExtra(id)),toggleCustom:(id,event)=>guarded(()=>toggleCustom(id,event)),
         refresh:paint,budget
     };
@@ -8371,65 +8372,32 @@ function handleCreditAdjust(e) {
 }
 function handleCreateManualCredit(e) {
     e.preventDefault();
-    const $ = id => document.getElementById(id);
-    try {
-        const name = $('new-credit-name').value.trim();
-        const owner = $('new-credit-owner').value;
-        const installment = Number($('new-credit-installment').value);
-        const total = Number($('new-credit-total').value);
-        const remaining = Number($('new-credit-remaining').value);
-        const months = Number($('new-credit-months').value);
-        const endInput = $('new-credit-enddate').value.trim();
-        if (!name) throw new Error('Indica o nome do crédito.');
-        if (!['M','S','BOTH'].includes(owner)) throw new Error('Titular inválido.');
-        if (![installment,total,remaining,months].every(Number.isFinite) || installment<=0 || total<=0 || remaining<0 || remaining>total || !Number.isInteger(months) || months<1) {
-            throw new Error('Confirma os valores: prestação e total positivos, saldo entre zero e o total e meses inteiros maiores que zero.');
-        }
-        const startDate = new Date();
-        const start = startDate.getFullYear()+'-'+String(startDate.getMonth()+1).padStart(2,'0');
-        let end = '';
-        if (endInput) {
-            const match = endInput.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (!match) throw new Error('A data final deve estar no formato DD/MM/AAAA.');
-            const day=Number(match[1]), month=Number(match[2]), year=Number(match[3]);
-            const parsed=new Date(year,month-1,day);
-            if(parsed.getFullYear()!==year||parsed.getMonth()!==month-1||parsed.getDate()!==day) throw new Error('A data final não é válida.');
-            end=year+'-'+String(month).padStart(2,'0');
-        } else {
-            const d=new Date(startDate.getFullYear(),startDate.getMonth()+months-1,1);
-            end=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-        }
-        if (end<start) throw new Error('A data final não pode ser anterior ao mês atual.');
-        if (!appData || !Array.isArray(appData.accounts)) throw new Error('Os dados ainda não estão carregados.');
-        const cents=Math.round(installment*100), partM=Math.floor(cents/2), partS=cents-partM;
-        const account={
-            id: typeof uid==='function' ? uid('account') : 'manual-credit-'+Date.now(),
-            name, group:'Cartões e Créditos', payer:owner, scope:'general', amount:cents/100,
-            ...(owner==='BOTH'?{amountM:partM/100,amountS:partS/100}:{}),
-            day:1, schedule:{kind:'monthly',start,end}, statuses:Array(12).fill('PENDING'),
-            personStates:{}, annualStatesVersion:1,
-            creditTotal:Math.round(total*100)/100, creditRemaining:Math.round(remaining*100)/100,
-            creditMonths:months, creditEndDate:endInput || end
-        };
-        if (appData.accounts.some(a=>String(a.id)===String(account.id))) throw new Error('Não foi possível gerar um identificador único. Tenta novamente.');
-        appData.accounts.push(account);
-        try {
-            saveDataToLocalStorage();
-        } catch (saveError) {
-            appData.accounts.pop();
-            throw saveError;
-        }
-        $('modal-new-credit').classList.add('hidden');
-        $('form-new-credit').reset();
-        if (typeof renderApp==='function') renderApp();
-        if (typeof notify==='function') notify('Crédito criado. A gravação automática no Sheets foi iniciada.',false);
-        else alert('Crédito criado e adicionado às despesas mensais.');
-    } catch (error) {
-        const message=error?.message||'Não foi possível criar o crédito.';
-        let alertBox=$('new-credit-error');
-        if(!alertBox){alertBox=document.createElement('p');alertBox.id='new-credit-error';alertBox.setAttribute('role','alert');alertBox.style.cssText='color:#ef4444;font-weight:700;margin-top:8px';$('form-new-credit').append(alertBox);}
-        alertBox.textContent=message;
+    const name = document.getElementById('new-credit-name').value.trim();
+    const owner = document.getElementById('new-credit-owner').value;
+    const inst = parseFloat(document.getElementById('new-credit-installment').value);
+    const total = parseFloat(document.getElementById('new-credit-total').value);
+    const remaining = parseFloat(document.getElementById('new-credit-remaining').value);
+    const months = parseInt(document.getElementById('new-credit-months').value, 10);
+    const enddate = document.getElementById('new-credit-enddate').value.trim();
+
+    if (appData && appData.accounts) {
+        appData.accounts.push({
+            name: name,
+            group: 'Cartões e Créditos',
+            payer: owner,
+            scope: (owner === 'SEMPERFIF') ? 'semperfif' : 'geral',
+            amount: inst,
+            day: 1,
+            creditTotal: total,
+            creditRemaining: remaining,
+            creditMonths: months,
+            creditEndDate: enddate
+        });
+        saveAccountsToLocalStorage();
     }
+    document.getElementById('modal-new-credit').classList.add('hidden');
+    renderApp();
+    alert('Crédito "' + name + '" adicionado com sucesso às contas!');
 }
 </script>
 
