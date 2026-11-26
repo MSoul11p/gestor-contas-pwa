@@ -1,0 +1,288 @@
+<!-- NOVO R35 — bloco isolado. Colar em index.html antes de </body>. Não altera nada existente. -->
+<style id="r35-css">
+/* NOVO R35 — ganhos novos dentro da lista (o painel separado R30 fica oculto) */
+html body #r30-gains:not([hidden]){display:none!important}
+.r35-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid #94a3b880;border-radius:999px;font-weight:800;font-size:12px;white-space:nowrap;cursor:pointer;background:transparent}
+.r35-pill:hover{background:#10b98122}
+.r35-sub{display:block;font-size:10px;font-weight:600;opacity:.75}
+.r35-off{opacity:.55}
+/* NOVO R35 — diálogo e dívidas manuais */
+#r35-dialog{width:min(480px,calc(100% - 24px));max-height:88dvh;border:1px solid #94a3b877;border-radius:22px;padding:0;background:var(--surface);color:var(--ink);box-shadow:0 25px 80px #0007}
+#r35-dialog::backdrop{background:#0009;backdrop-filter:blur(4px)}
+#r35-form{padding:20px;display:block}
+#r35-form h2{font-size:18px;font-weight:800;margin-bottom:6px}
+#r35-form label{display:block;margin-top:12px;font-size:12px;font-weight:700}
+#r35-dialog input,#r35-dialog select{display:block;width:100%;margin-top:5px;padding:10px 11px;border:1px solid #94a3b8;border-radius:12px;background:var(--surface)!important;color:var(--ink)!important;font-size:14px}
+.r35-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.r35-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:18px}
+.r35-foot button{padding:10px 14px;border-radius:12px;border:1px solid #94a3b8;font-weight:700;font-size:13px;background:var(--surface);color:var(--ink)}
+.r35-foot button.main{background:#10b981;color:#04251a;border-color:#10b981}
+.r35-foot button.danger{border-color:#dc2626;color:#dc2626}
+#r35-err{color:#dc2626;font-size:12px;min-height:16px;margin-top:10px}
+#r35-debts{padding:16px;border-top:1px solid #94a3b855}
+.r35-debt{border:1px solid #94a3b855;border-radius:18px;padding:14px;margin-top:12px;background:#94a3b814}
+.r35-bar{height:10px;border-radius:99px;background:#94a3b844;overflow:hidden;margin:10px 0}
+.r35-bar>i{display:block;height:100%;background:linear-gradient(90deg,#3b82f6,#ec4899)}
+.r35-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.r35-b{padding:8px 12px;border-radius:12px;border:1px solid #94a3b8;font-size:12px;font-weight:700;background:transparent;color:inherit;cursor:pointer}
+.r35-b.main{background:#10b981;color:#04251a;border-color:#10b981}
+/* NOVO R35 — tema de Natal (html.xmas35) */
+html.xmas35 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 15% 12%,rgba(255,255,255,.10) 0 2px,transparent 3px) 0 0/90px 90px,radial-gradient(circle at 60% 70%,rgba(255,255,255,.08) 0 1.5px,transparent 2.5px) 0 0/70px 70px,linear-gradient(165deg,color-mix(in srgb,var(--ac,#10b981) 24%,#06101c) 0%,#0a2218 52%,#3a111b 100%)}
+html.xmas35:not(.dark) body::before{background:radial-gradient(circle at 15% 12%,rgba(220,38,38,.10) 0 2px,transparent 3px) 0 0/90px 90px,radial-gradient(circle at 60% 70%,rgba(22,163,74,.10) 0 1.5px,transparent 2.5px) 0 0/70px 70px,linear-gradient(165deg,color-mix(in srgb,var(--ac,#10b981) 14%,#ffffff) 0%,#ecfdf5 52%,#fff1f2 100%)}
+html.xmas35.r35-custom body::before{display:none}
+html.xmas35 body::after{content:"";position:fixed;left:0;right:0;top:0;height:7px;z-index:90;pointer-events:none;background:repeating-linear-gradient(90deg,#ef4444 0 14px,#fbbf24 14px 28px,#22c55e 28px 42px,#38bdf8 42px 56px);animation:r35blink 1.6s steps(2,end) infinite}
+html.xmas35 #header-app-title::after{content:" 🎄"}
+html.xmas35 #current-tab-subtitle::before{content:"❄️ "}
+#r35-snow{position:fixed;inset:0;z-index:35;pointer-events:none;overflow:hidden}
+.r35-flake{position:fixed;top:0;opacity:.85;pointer-events:none;animation:r35fall linear infinite;will-change:transform}
+@keyframes r35fall{0%{transform:translate3d(0,-8vh,0) rotate(0)}100%{transform:translate3d(var(--dx,0),108vh,0) rotate(360deg)}}
+@keyframes r35blink{50%{filter:brightness(.55)}}
+html[data-motion30=off] .r35-flake,html[data-motion30=reduced] .r35-flake{display:none}
+@media(prefers-reduced-motion:reduce){.r35-flake{display:none}html.xmas35 body::after{animation:none}}
+.settings-panel details.r35-set{border-left-color:#ef4444;background:rgba(239,68,68,.08)}
+</style>
+<script id="r35">
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const euro=c=>(c/100).toLocaleString('pt-PT',{style:'currency',currency:'EUR'});
+const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cents=n=>{if(typeof n!=='number'||!Number.isFinite(n)||n<0||n>1e9)throw Error('Montante inválido.');if(Math.abs(n*100-Math.round(n*100))>1e-4)throw Error('Usa no máximo duas casas decimais.');return Math.round(n*100);};
+const iso=()=>new Date().toISOString();
+const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const uid=p=>p+'_'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));
+const clone=x=>JSON.parse(JSON.stringify(x));
+const vd=s=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const [y,m,d]=s.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,d));return t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;};
+function editable(){const s=$('sync-status')?.dataset.state;if(!appData||!['loaded','saved','pending','saving'].includes(s))throw Error('Aguarda o carregamento e a gravação, ou resolve primeiro o erro de sincronização.');}
+function commit(fn){editable();const bk=clone(appData);try{fn();}catch(e){appData=bk;throw e;}saveDataToLocalStorage();renderApp();}
+function dlg(title,body,submit,label,extras){
+  let d=$('r35-dialog');if(!d){d=document.createElement('dialog');d.id='r35-dialog';document.body.append(d);}
+  if(d.open)d.close();
+  d.innerHTML='<form id="r35-form"><h2>'+esc(title)+'</h2>'+body+'<p id="r35-err" role="alert"></p><div class="r35-foot"></div></form>';
+  const foot=d.querySelector('.r35-foot');
+  (extras||[]).forEach(x=>{const b=document.createElement('button');b.type='button';b.textContent=x.label;if(x.danger)b.className='danger';b.onclick=()=>{try{if(x.fn()!==false)d.close();}catch(e){$('r35-err').textContent=e.message;}};foot.append(b);});
+  const c=document.createElement('button');c.type='button';c.textContent='Cancelar';c.onclick=()=>d.close();foot.append(c);
+  if(submit){const s=document.createElement('button');s.type='submit';s.className='main';s.textContent=label||'Guardar';foot.append(s);}
+  d.querySelector('form').onsubmit=e=>{e.preventDefault();try{if(submit&&submit()!==false)d.close();}catch(err){$('r35-err').textContent=err.message;}};
+  d.showModal();
+}
+const fld=(l,id,v,t,a)=>'<label for="'+id+'">'+l+'</label><input id="'+id+'" type="'+(t||'text')+'" value="'+esc(v??'')+'" '+(a||'')+'>';
+const sel=(l,id,o,cur)=>'<label for="'+id+'">'+l+'</label><select id="'+id+'">'+o.map(([k,v])=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+esc(v)+'</option>').join('')+'</select>';
+const num=id=>{const r=$(id).value.trim();if(!r)throw Error('Preenche todos os montantes.');return Number(r);};
+
+/* ===== NOVO: ganhos novos dentro da lista principal ===== */
+const OWN=['M','S','BOTH','SEMPERFIF'];
+const idx=s=>{const [y,m]=s.split('-').map(Number);return y*12+m-1;};
+const sched=g=>g.schedule31||((g.repeat&&g.repeat!=='once')?{kind:g.repeat,start:String(g.date).slice(0,7),end:''}:null);
+function occurs(g,y,m,ig){
+  if((!ig&&g.deleted)||g.excludedYears31?.[String(y)]||g.excludedMonths31?.[y+':'+m])return false;
+  const s=sched(g),now=Number(y)*12+Number(m);
+  if(!s)return Number(g.date.slice(0,4))===Number(y)&&Number(g.date.slice(5,7))-1===Number(m);
+  const st=idx(s.start);if(now<st||(s.end&&now>idx(s.end)))return false;
+  return s.kind==='once'?now===st:s.kind==='yearly'?Number(m)===st%12:true;
+}
+function parts(g,y,m){
+  const o=g.monthlyValues31?.[y+':'+m],n=cents(Number(o?.amount??g.amount));
+  if(g.owner!=='BOTH')return {[g.owner]:n};
+  let a;
+  if(o?.splitM!==undefined)a=cents(Number(o.splitM));
+  else if(g.splitM31!==undefined)a=Math.round(n*cents(Number(g.splitM31))/Math.max(1,cents(Number(g.amount))));
+  else a=Math.floor(n/2);
+  a=Math.min(a,n);return {M:a,S:n-a};
+}
+const pick=(p,t)=>t==='geral'?(p.M||0)+(p.S||0):(p[t==='semperfif'?'SEMPERFIF':t.toUpperCase()]||0);
+const val=(g,y,m,t,ig)=>occurs(g,y,m,ig)?pick(parts(g,y,m),t):0;
+const months=()=>selectedMonthIdx==='all'?[0,1,2,3,4,5,6,7,8,9,10,11]:[Number(selectedMonthIdx)];
+const gainsMode=()=>$('r28-gains')?.getAttribute('aria-pressed')==='true';
+
+function injectGains(){
+  const body=$('table-body');if(!body||!appData)return;
+  body.querySelectorAll('.r35-row').forEach(n=>n.remove());
+  if(!['geral','m','s','semperfif'].includes(currentTab))return;
+  const y=Number(selectedYear),ms=months(),annual=selectedMonthIdx==='all',rows=[];
+  (appData.extraGains30||[]).forEach(g=>{try{
+    const ghost=!!g.deleted,vals=ms.map(m=>val(g,y,m,currentTab,ghost)),total=vals.reduce((a,b)=>a+b,0);
+    if(total)rows.push({g,vals,total,off:ghost});
+  }catch(e){}});
+  if(!rows.length)return;
+  const hide=!gainsMode(),frag=document.createDocumentFragment();
+  if(!body.querySelector('.gain-section-cell')){
+    const h=document.createElement('tr');h.className='r35-row';h.hidden=hide;
+    h.innerHTML='<td colspan="3" class="gain-section-cell p-2.5 font-extrabold text-[12px] uppercase tracking-wider">💵 Ganhos</td>';frag.append(h);
+  }
+  rows.forEach(({g,vals,total,off})=>{
+    const tr=document.createElement('tr');tr.className='r35-row gain-row bg-emerald-500/5 font-bold'+(off?' r35-off':'');tr.hidden=hide;
+    const kind={monthly:'Mensal',yearly:'Anual',once:'Só desta vez'}[(sched(g)||{kind:'once'}).kind]||'';
+    const sub=esc((g.category31?g.category31+' · ':'')+kind+(off?' · Removido':''));
+    const btn=(c,t)=>'<button type="button" class="r35-pill" data-r35-gain="'+esc(g.id)+'" title="Editar ganho">'+t+'</button>';
+    let h='<td class="p-3 sticky-col z-20 border-r border-slate-800/40">'+esc(g.description)+'<span class="r35-sub">'+sub+'</span></td>';
+    if(annual){
+      h+='<td class="p-2 text-center">-</td><td class="p-2 text-center">-</td>';
+      vals.forEach(c=>{h+='<td class="p-2 text-center">'+(c?btn(c,'+ '+euro(c)):'—')+'</td>';});
+      h+='<td class="p-2 text-center font-black">+ '+euro(total)+'</td>';
+    }else{
+      h+='<td class="p-2 text-center">'+btn(total,'+ '+euro(total)+' · dia '+esc(String(g.date).slice(8,10))+' ✏️')+'</td>';
+    }
+    tr.innerHTML=h;frag.append(tr);
+  });
+  body.append(frag);
+  $('r28-search')?.dispatchEvent(new Event('input'));
+}
+
+function openGain(id){
+  const g=(appData.extraGains30||[]).find(x=>x.id===id);if(!g)return;
+  dlg('Editar ganho',
+    '<p style="font-size:12px;opacity:.8">Altera a origem do ganho (todas as ocorrências da série).</p>'+
+    fld('Descrição','r35g-d',g.description,'text','maxlength="180" required')+
+    '<div class="r35-grid"><div>'+fld('Valor (€)','r35g-a',g.amount,'number','step="0.01" min="0.01" required')+'</div><div>'+fld('Data','r35g-t',g.date,'date','required')+'</div></div>'+
+    sel('Atribuição','r35g-o',[['M','M'],['S','S'],['BOTH','M + S — 50/50'],['SEMPERFIF','Semperfif']],g.owner)+
+    fld('Categoria (opcional)','r35g-c',g.category31||'','text','maxlength="80"'),
+    ()=>{
+      const d=$('r35g-d').value.trim(),a=num('r35g-a'),t=$('r35g-t').value,o=$('r35g-o').value,c=$('r35g-c').value.trim();
+      if(!d)throw Error('Indica uma descrição.');
+      if(cents(a)<=0)throw Error('O ganho tem de ser superior a zero.');
+      if(!vd(t))throw Error('Data inválida.');
+      if(!OWN.includes(o))throw Error('Atribuição inválida.');
+      commit(()=>{
+        const x=appData.extraGains30.find(z=>z.id===id);
+        (x.revisions=x.revisions||[]).push({at:iso(),before:{description:x.description,amount:x.amount,date:x.date,owner:x.owner,category31:x.category31}});
+        const s=x.schedule31||((x.repeat&&x.repeat!=='once')?{kind:x.repeat,start:String(x.date).slice(0,7),end:''}:null);
+        Object.assign(x,{description:d,amount:a,date:t,owner:o,updatedAt:iso()});
+        if(c)x.category31=c;else delete x.category31;
+        if(s){s.start=t.slice(0,7);x.schedule31=s;}
+        if(o!=='BOTH')delete x.splitM31;
+      });
+    },'Guardar',
+    [{label:g.deleted?'Restaurar':'Remover',danger:!g.deleted,fn:()=>{
+      if(!confirm((g.deleted?'Restaurar':'Remover')+' este ganho? O histórico é preservado.'))return false;
+      commit(()=>{const x=appData.extraGains30.find(z=>z.id===id);(x.revisions=x.revisions||[]).push({at:iso(),before:{deleted:x.deleted}});x.deleted=!x.deleted;x.updatedAt=iso();});
+    }}]);
+}
+
+const _rs=window.renderStandardTable;
+window.renderStandardTable=function(){const r=_rs.apply(this,arguments);try{injectGains();}catch(e){console.warn('R35 ganhos',e);}return r;};
+
+/* ===== NOVO: dívidas manuais (prestações, extras, histórico, anulação) ===== */
+const debts=()=>(appData&&appData.manualDebts35)||[];
+const openH=new Set();
+function endDate(d,n){const t=new Date();const m=t.getMonth()+(t.getDate()>Number(d.day)?1:0)+n-1;const f=new Date(t.getFullYear(),m,1);const last=new Date(f.getFullYear(),f.getMonth()+1,0).getDate();return new Date(f.getFullYear(),f.getMonth(),Math.min(Number(d.day),last));}
+function stats(d){
+  const paid=(d.payments||[]).filter(p=>!p.void).reduce((s,p)=>s+cents(Number(p.capital)),0);
+  const bal=cents(Number(d.balance)),rem=Math.max(0,bal-paid),mon=Math.max(1,cents(Number(d.monthly))),n=rem?Math.ceil(rem/mon):0;
+  return {rem,mon,n,tot:cents(Number(d.total)),end:n?endDate(d,n):null,pct:bal?Math.min(100,Math.round((bal-rem)/bal*100)):100};
+}
+function debtsHTML(){
+  const f=(typeof activeCreditOwnerFilter!=='undefined')?activeCreditOwnerFilter:'ALL';
+  const list=debts().filter(d=>!d.deleted&&(f==='ALL'||d.owner===f)),arch=debts().filter(d=>d.deleted);
+  let rem=0,mon=0;list.forEach(d=>{const s=stats(d);rem+=s.rem;if(s.rem)mon+=s.mon;});
+  let h='<div id="r35-debts"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center"><div><h3 style="font-size:16px;font-weight:900">🧾 Dívidas manuais</h3><p style="font-size:12px;opacity:.8">Falta pagar <strong>'+euro(rem)+'</strong> · prestações <strong>'+euro(mon)+'/mês</strong> · '+list.length+' dívida(s)</p></div><button type="button" class="r35-b main" data-r35="new">+ Nova dívida</button></div>';
+  if(!list.length)h+='<p style="font-size:12px;opacity:.75;margin-top:12px">Ainda não há dívidas manuais para este titular.</p>';
+  list.forEach(d=>{
+    const s=stats(d);
+    h+='<div class="r35-debt"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong>'+esc(d.name)+'</strong><span style="font-size:12px;opacity:.8">'+({M:'M',S:'S',BOTH:'Ambos'}[d.owner]||'')+' · dia '+esc(d.day)+'</span></div>'+
+      '<div class="r35-bar"><i style="width:'+s.pct+'%"></i></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px"><span>Falta pagar <strong>'+euro(s.rem)+'</strong></span><span>Prestação <strong>'+euro(s.mon)+'</strong></span><span>Total ref. '+euro(s.tot)+'</span><span>'+(s.rem?s.n+' prestação(ões) · fim '+s.end.toLocaleDateString('pt-PT'):'✅ Liquidada')+'</span></div>'+
+      '<div class="r35-btns">'+(s.rem?'<button type="button" class="r35-b main" data-r35="pay" data-id="'+esc(d.id)+'">Pagar prestação</button><button type="button" class="r35-b" data-r35="extra" data-id="'+esc(d.id)+'">+ Pagamento extra</button>':'')+'<button type="button" class="r35-b" data-r35="hist" data-id="'+esc(d.id)+'">Histórico ('+(d.payments||[]).length+')</button><button type="button" class="r35-b" data-r35="arch" data-id="'+esc(d.id)+'">Arquivar</button></div>';
+    if(openH.has(d.id)){
+      h+='<div style="margin-top:10px">'+((d.payments||[]).slice().reverse().map(p=>'<div class="'+(p.void?'r35-off':'')+'" style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-top:1px solid #94a3b844;font-size:12px"><span>'+esc(String(p.date).split('-').reverse().join('/'))+' · '+(p.type==='extra'?'Extra':'Prestação')+' · '+euro(cents(Number(p.amount)))+' (abate '+euro(cents(Number(p.capital)))+')'+(p.note?' · '+esc(p.note):'')+(p.void?' · Anulado':'')+'</span><button type="button" class="r35-b" data-r35="void" data-id="'+esc(d.id)+'" data-pid="'+esc(p.id)+'">'+(p.void?'Repor':'Anular')+'</button></div>').join('')||'<p style="font-size:12px;opacity:.75">Sem pagamentos registados.</p>')+'</div>';
+    }
+    h+='</div>';
+  });
+  if(arch.length)h+='<details style="margin-top:14px"><summary style="cursor:pointer;font-size:12px;font-weight:700">Arquivadas ('+arch.length+')</summary>'+arch.map(d=>'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;font-size:12px"><span>'+esc(d.name)+'</span><button type="button" class="r35-b" data-r35="unarch" data-id="'+esc(d.id)+'">Repor</button></div>').join('')+'</details>';
+  return h+'</div>';
+}
+function newDebt(){
+  dlg('Nova dívida manual',
+    fld('Nome','r35d-n','','text','maxlength="120" required placeholder="Ex.: Cartão, empréstimo…"')+
+    sel('Titular','r35d-o',[['M','M'],['S','S'],['BOTH','Ambos']],'M')+
+    '<div class="r35-grid"><div>'+fld('Total de referência (€)','r35d-t','','number','step="0.01" min="0.01" required')+'</div><div>'+fld('Falta pagar agora (€)','r35d-b','','number','step="0.01" min="0" required')+'</div></div>'+
+    '<div class="r35-grid"><div>'+fld('Prestação mensal (€)','r35d-m','','number','step="0.01" min="0.01" required')+'</div><div>'+fld('Dia de vencimento','r35d-day','1','number','min="1" max="31" required')+'</div></div>',
+    ()=>{
+      const n=$('r35d-n').value.trim(),o=$('r35d-o').value,t=num('r35d-t'),b=num('r35d-b'),mo=num('r35d-m'),day=Number($('r35d-day').value);
+      if(!n)throw Error('Indica um nome.');
+      if(!['M','S','BOTH'].includes(o))throw Error('Titular inválido.');
+      if(cents(mo)<=0)throw Error('A prestação tem de ser superior a zero.');
+      if(cents(t)<cents(b))throw Error('O total não pode ser inferior ao que falta pagar.');
+      if(!Number.isInteger(day)||day<1||day>31)throw Error('Dia de vencimento inválido.');
+      commit(()=>{(appData.manualDebts35=appData.manualDebts35||[]).push({id:uid('mdebt'),name:n,owner:o,total:t,balance:b,monthly:mo,day,deleted:false,payments:[],createdAt:iso()});});
+    },'Criar dívida');
+}
+function payDlg(d,type){
+  const s=stats(d),def=type==='installment'?Math.min(s.mon,s.rem)/100:'';
+  dlg(type==='extra'?'Pagamento extra — '+d.name:'Pagar prestação — '+d.name,
+    '<p style="font-size:12px;opacity:.8">Falta pagar '+euro(s.rem)+'. Se houve juros ou encargos, reduz o valor que abate à dívida.</p>'+
+    '<div class="r35-grid"><div>'+fld('Valor pago (€)','r35p-a',def,'number','step="0.01" min="0.01" required')+'</div><div>'+fld('Abate à dívida (€)','r35p-c',def,'number','step="0.01" min="0" required')+'</div></div>'+
+    fld('Data','r35p-t',todayStr(),'date','required')+fld('Nota (opcional)','r35p-n','','text','maxlength="200"'),
+    ()=>{
+      const a=num('r35p-a'),c=num('r35p-c'),t=$('r35p-t').value,note=$('r35p-n').value.trim();
+      if(cents(a)<=0)throw Error('O valor pago tem de ser superior a zero.');
+      if(cents(c)>cents(a))throw Error('O abatimento não pode ultrapassar o valor pago.');
+      if(!vd(t)||t>todayStr())throw Error('Data inválida ou futura.');
+      const cur=stats(debts().find(z=>z.id===d.id));
+      if(cents(c)>cur.rem)throw Error('O abatimento ultrapassa o que falta pagar ('+euro(cur.rem)+').');
+      commit(()=>{const x=debts().find(z=>z.id===d.id);(x.payments=x.payments||[]).push({id:uid('mpay'),type,date:t,amount:a,capital:c,note,void:false,at:iso()});});
+    },'Registar');
+  $('r35p-a').oninput=()=>{if(!$('r35p-c').dataset.t)$('r35p-c').value=$('r35p-a').value;};
+  $('r35p-c').oninput=()=>{$('r35p-c').dataset.t='1';};
+}
+function act(a,id,pid){
+  if(['new','pay','extra'].includes(a))editable();
+  if(a==='new')return newDebt();
+  const d=debts().find(x=>x.id===id);if(!d)return;
+  if(a==='pay'||a==='extra')return payDlg(d,a==='pay'?'installment':'extra');
+  if(a==='hist'){if(openH.has(id))openH.delete(id);else openH.add(id);return renderApp();}
+  if(a==='void'){
+    if(!confirm('Alterar o estado deste pagamento? O histórico é preservado.'))return;
+    return commit(()=>{const x=debts().find(z=>z.id===id),p=x.payments.find(z=>z.id===pid);(p.revisions=p.revisions||[]).push({at:iso(),void:p.void});p.void=!p.void;});
+  }
+  if(a==='arch'||a==='unarch'){
+    if(!confirm((a==='arch'?'Arquivar':'Repor')+' «'+d.name+'»? O histórico é preservado.'))return;
+    return commit(()=>{const x=debts().find(z=>z.id===id);x.deleted=a==='arch';x.updatedAt=iso();});
+  }
+}
+window.openNewCreditModal=function(){try{editable();newDebt();}catch(e){alert(e.message);}};
+window.handleCreateManualCredit=function(e){if(e&&e.preventDefault)e.preventDefault();};
+const _u=window.renderUnifiedCreditsScreen;
+if(typeof _u==='function')window.renderUnifiedCreditsScreen=function(){
+  const r=_u.apply(this,arguments);
+  try{const c=$('credit-container');if(c&&appData){c.querySelector('#r35-debts')?.remove();c.insertAdjacentHTML('beforeend',debtsHTML());}}catch(e){console.warn('R35 dívidas',e);}
+  return r;
+};
+
+/* ===== NOVO: tema de Natal ===== */
+const SK='contas_ms_season35';
+const season=()=>{try{return localStorage.getItem(SK)||'natal';}catch(e){return 'natal';}};
+function applySeason(){
+  const on=season()==='natal';
+  document.documentElement.classList.toggle('xmas35',on);
+  let box=$('r35-snow');
+  if(!on){if(box)box.remove();return;}
+  if(box)return;
+  box=document.createElement('div');box.id='r35-snow';box.setAttribute('aria-hidden','true');
+  const E=['❄️','❄️','❅','❆','✨','❄️','🎄','🎁','⭐','🔔'];
+  for(let i=0;i<26;i++){const s=document.createElement('span');s.className='r35-flake';s.textContent=E[i%E.length];
+    s.style.cssText='left:'+(Math.random()*100)+'vw;font-size:'+(12+Math.random()*16)+'px;animation-duration:'+(9+Math.random()*10)+'s;animation-delay:-'+(Math.random()*18)+'s;--dx:'+((Math.random()-.5)*140)+'px';box.append(s);}
+  document.body.append(box);
+}
+function buildSettings(){
+  const p=document.querySelector('#settings-modal .settings-panel');if(!p||$('r35-set'))return;
+  const d=document.createElement('details');d.id='r35-set';d.className='r35-set';
+  d.innerHTML='<summary>🎄 Tema sazonal</summary><label for="r35-season">Tema</label><select id="r35-season"><option value="natal">Natal 🎄 — fundo, luzes e neve</option><option value="off">Desligado</option></select><p style="font-size:12px;opacity:.8;margin-top:8px">A neve é desligada automaticamente com o movimento reduzido do dispositivo. A preferência fica guardada neste navegador.</p>';
+  p.append(d);
+  const s=$('r35-season');s.value=season();
+  s.onchange=()=>{try{localStorage.setItem(SK,s.value);}catch(e){}applySeason();};
+}
+const _ra=window.renderApp;
+window.renderApp=function(){
+  const r=_ra.apply(this,arguments);
+  try{const bi=document.body.style.backgroundImage;document.documentElement.classList.toggle('r35-custom',!!bi&&bi!=='none');}catch(e){}
+  return r;
+};
+
+const go=()=>{
+  buildSettings();applySeason();
+  $('table-body')?.addEventListener('click',e=>{const b=e.target.closest('[data-r35-gain]');if(!b)return;e.preventDefault();openGain(b.dataset.r35Gain);});
+  $('credit-container')?.addEventListener('click',e=>{const b=e.target.closest('[data-r35]');if(!b)return;e.preventDefault();try{act(b.dataset.r35,b.dataset.id,b.dataset.pid);}catch(err){alert(err.message);}});
+};
+document.readyState==='loading'?addEventListener('DOMContentLoaded',go):go();
+})();
+</script>
