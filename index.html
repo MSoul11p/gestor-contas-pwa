@@ -881,31 +881,7 @@ html.dark :is(#month-dialog10, #month-modal-v10, #note-reader11, #reader11, #not
 html.dark :is(#month-error10, #month-error-v10) {
     color: #fda4af !important;
 }
-  
-/* R33 - Crédito limpo conforme Imagem 1 */
-#r30-credit, .r30-warning, #r30-credit details {
-    display: none !important;
-}
-.credit-clean-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-}
-.btn-credit-adjust {
-    background: #0284c7 !important;
-    color: white !important;
-    padding: 8px 16px !important;
-    border-radius: 12px !important;
-    font-weight: 800 !important;
-    font-size: 12px !important;
-    border: none !important;
-    cursor: pointer !important;
-    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
-}
-
-</style>
+  </style>
   <link href="./manifest.webmanifest" rel="manifest"/>
   <meta content="#5b21b6" name="theme-color"/>
   <link href="./icon-192.png" rel="icon" sizes="192x192" type="image/png"/>
@@ -1222,6 +1198,57 @@ body[data-r31] #r30-dialog{background:var(--r31-card);color:var(--r31-ink)}body[
 @media(prefers-reduced-motion:no-preference){html:not([data-motion30=off]) .r31-btn,html:not([data-motion30=off]) .r31-pill{transition:transform .17s}html:not([data-motion30=off]) .r31-btn:active,html:not([data-motion30=off]) .r31-pill:active{transform:scale(.97)}}
 
 </style>
+
+<style>
+/* R32 Fixes: Ocultar seletor e visão do ano dentro dos créditos */
+#credit-container #period27,
+#credit-container .selector-theme,
+#credit-container #annual27,
+#credit-container [id*="period"],
+.credit-active #period27 {
+    display: none !important;
+}
+/* Ocultar cabeçalho CATEGORIA / DESPESA */
+#table-header-row {
+    display: none !important;
+}
+/* Garantir que a cápsula fica limpa na vista geral */
+#period27 {
+    display: inline-flex !important;
+    align-items: center !important;
+    background: var(--surface) !important;
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
+    border-radius: 999px !important;
+    padding: 3px 6px !important;
+    gap: 4px !important;
+    margin-left: auto !important;
+}
+#period27 button {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    padding: 6px 12px !important;
+    font-weight: 750 !important;
+    cursor: pointer !important;
+    color: var(--ink) !important;
+}
+#period27 select {
+    background: transparent !important;
+    border: 0 !important;
+    font-size: 14px !important;
+    font-weight: 750 !important;
+    color: var(--ink) !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+}
+#period27 #annual27 {
+    background: rgba(37, 99, 235, 0.1) !important;
+    color: #2563eb !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+}
+</style>
+
 </head>
  <body class="theme-geral dark min-h-screen flex flex-col justify-between pb-36">
   <div hidden="" id="pwa-gate">
@@ -2648,13 +2675,16 @@ function renderCreditSection(creditTab) {
                     </div>
 
 
-                    <div class="flex items-center gap-3">
-                        <button type="button" onclick="openCreditAdjustmentModal('${creditTab}')" class="btn-credit-adjust cartoon-bounce">
-                            ⚙️ Acertar / Pagamento Extra
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" onclick="openCreditAdjustModal('${creditTab}')" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow">
+                            ⚖️ Acertar Saldo / Extra
                         </button>
-                        <button onclick="markCreditMonthPaid('${creditTab}', '${currentMonthItem.date}')" class="px-5 py-3 ${currentMonthItem.status === 'PAID' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black'} rounded-2xl shadow-lg cartoon-bounce text-xs flex items-center gap-2">
+                        <button type="button" onclick="openNewCreditModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold rounded-xl text-xs flex items-center gap-1.5">
+                            + Novo Crédito Manual
+                        </button>
+                        <button type="button" onclick="markCreditMonthPaid('${creditTab}', '${currentMonthItem.date}')" class="px-4 py-2.5 ${currentMonthItem.status === 'PAID' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 font-black'} rounded-xl shadow cartoon-bounce text-xs flex items-center gap-1.5">
                             <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                            <span>${currentMonthItem.status === 'PAID' ? '✅ Liquidado este Mês' : 'Marcar Prestação como Paga'}</span>
+                            <span>${currentMonthItem.status === 'PAID' ? '✓ Liquidado este Mês' : 'Marcar como Pago'}</span>
                         </button>
                     </div>
                 </div>
@@ -2822,45 +2852,7 @@ function runLogoEffect(effect,element){
     const r=element.getBoundingClientRect(),origin={
         x:(r.left+r.width/2)/innerWidth,y:(r.top+r.height/2)/innerHeight
     };
-    
-    if(effect==='bounce'){
-        const badge = element || document.getElementById('header-icon-badge');
-        if(badge){
-            const rect = badge.getBoundingClientRect();
-            const clone = badge.cloneNode(true);
-            clone.style.position = 'fixed';
-            clone.style.left = rect.left + 'px';
-            clone.style.top = rect.top + 'px';
-            clone.style.width = rect.width + 'px';
-            clone.style.height = rect.height + 'px';
-            clone.style.zIndex = '999999';
-            clone.style.pointerEvents = 'none';
-            clone.style.borderRadius = '16px';
-            clone.style.boxShadow = '0 14px 30px rgba(0,0,0,0.35)';
-            document.body.appendChild(clone);
-            const w = window.innerWidth - 60;
-            const h = window.innerHeight - 80;
-            if(typeof anime === 'function'){
-                anime({
-                    targets: clone,
-                    keyframes: [
-                        { translateY: Math.min(220, h * 0.3), translateX: Math.min(100, w * 0.25), scale: 1.35, rotate: 180, duration: 380, easing: 'easeOutQuad' },
-                        { translateY: Math.min(440, h * 0.6), translateX: -Math.min(120, w * 0.3), scale: 0.9, rotate: 360, duration: 380, easing: 'easeInQuad' },
-                        { translateY: 0, translateX: 0, scale: 1, rotate: 720, duration: 450, easing: 'easeOutElastic(1, .6)' }
-                    ],
-                    complete: () => {
-                        clone.remove();
-                        if(typeof confetti === 'function') confetti({ particleCount: 35, spread: 65, origin: { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight } });
-                    }
-                });
-            } else {
-                clone.animate([{ transform: 'translateY(0) scale(1)' }, { transform: 'translateY(200px) scale(1.3) rotate(180deg)' }, { transform: 'translateY(0) scale(1) rotate(360deg)' }], { duration: 800, easing: 'ease-out' }).onfinish = () => clone.remove();
-            }
-            return;
-        }
-    }
-
-    if(effect==='pulse'){
+    if(effect==='bounce'||effect==='pulse'){
         if(typeof anime==='function'){
             const clone=element.cloneNode(true);
             clone.style.position='fixed';
@@ -2884,7 +2876,6 @@ function runLogoEffect(effect,element){
                 ],
                 complete:()=>{
                     clone.remove();
-                    if(typeof triggerPartyEffect==='function')triggerPartyEffect();
                 }
             });
             return;
@@ -7044,9 +7035,13 @@ var ContasCore30 = (function () {
         return (records || []).reduce(function (sum, record) {
             if (record.deleted || Number(record.date.slice(0, 4)) !== Number(year) ||
                 (month !== 'all' && Number(record.date.slice(5, 7)) - 1 !== Number(month))) return sum;
+            const isSemperfif = record.owner === 'SEMPERFIF' || record.owner === 'semperfif';
+            if (isSemperfif) {
+                return tab === 'semperfif' ? sum + Number(record.amount || 0) : sum;
+            }
+            if (tab === 'semperfif') return sum;
             const parts = allocated(record.amount, record.owner);
-            return sum + (tab === 'geral' ? Object.values(parts).reduce((a, b) => a + b, 0) :
-                parts[tab === 'semperfif' ? 'SEMPERFIF' : tab.toUpperCase()] || 0);
+            return sum + (tab === 'geral' ? ((parts.M || 0) + (parts.S || 0)) : (parts[tab.toUpperCase()] || 0));
         }, 0);
     }
     function activeEvents(tools, key) {
@@ -7338,7 +7333,7 @@ var ContasCore30 = (function () {
                 Object.entries(parts11(a,selectedYear,month)).forEach(([person,n]) => { if (!who || person === who) expense += Math.round(Number(n || 0)*100); });
             });
             if (Number(selectedYear) <= 2027) {
-                const people = currentTab === 'geral' ? ['m','s','semperfif'] : [currentTab];
+                const people = currentTab === 'geral' ? ['m','s'] : [currentTab];
                 people.forEach(key => { base += Math.round(Number(appData.ganhos[key]?.[month] || 0)*100); });
             }
         });
@@ -7705,7 +7700,7 @@ var ContasCore30 = (function () {
         const sound=playSoundForStatus;
         playSoundForStatus=function(){if(prefs.sound===true)return sound.apply(this,arguments);};
         // Não festejar operações financeiras antes da confirmação de sincronização.
-        triggerPartyEffect=function(){ const prefs = JSON.parse(localStorage.getItem("contas_view_prefs_r28") || "{}"); const eff = (prefs[currentTab]||{}).clickEffect || "bounce"; runLogoEffect(eff, document.getElementById("header-icon-badge") || document.querySelector("#header-icon-badge")); };
+        triggerPartyEffect=function(){partyArmed=true;};
         const logo=runLogoEffect;
         runLogoEffect=function(){if(effectiveMotion()==='full')return logo.apply(this,arguments);};
         const priorOccurs=occurs11;
@@ -8213,239 +8208,209 @@ var ContasCore31 = (function () {
 
 </script>
 
-<!-- MODAL NOVO GANHO CONFORME IMAGEM 2 -->
-<div id="modal-modern-gain" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-  <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-      <h3 class="font-bold text-lg text-emerald-400 flex items-center gap-2 cartoon-title">
-        💵 Novo Ganho
-      </h3>
-      <button class="text-slate-400 hover:text-white" onclick="document.getElementById('modal-modern-gain').classList.add('hidden')">
-        ✕ Fechar
-      </button>
+<script>
+// R32: Escuta de clique no logotipo que respeita fielmente o efeito selecionado nas definições
+document.addEventListener('DOMContentLoaded', function() {
+    function bindLogoEffect() {
+        const badge = document.getElementById('header-icon-badge');
+        if (!badge || badge.dataset.boundR32 === 'true') return;
+        badge.dataset.boundR32 = 'true';
+        badge.style.cursor = 'pointer';
+        badge.addEventListener('click', function(e) {
+            e.stopPropagation();
+            try {
+                const prefs = JSON.parse(localStorage.getItem('contas_pwa_visual_v1') || '{}');
+                const effect = (prefs[currentTab] || {}).clickEffect || 'confetti';
+                if (typeof runLogoEffect === 'function') {
+                    runLogoEffect(effect, badge);
+                } else if (effect === 'fountain' && typeof window.moneyRain26 === 'function') {
+                    window.moneyRain26();
+                }
+            } catch(err) {
+                console.warn('Erro ao disparar efeito do logo:', err);
+            }
+        });
+    }
+    bindLogoEffect();
+    setInterval(bindLogoEffect, 1000);
+});
+</script>
+
+
+<!-- MODAL: ACERTAR SALDO / AMORTIZAÇÃO EXTRA -->
+<div id="modal-credit-adjust" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-lg text-blue-400 flex items-center gap-2">
+                ⚖️ Acertar Saldo / Amortizar Extra
+            </h3>
+            <button class="text-slate-400 hover:text-white" onclick="document.getElementById('modal-credit-adjust').classList.add('hidden')">
+                ✕
+            </button>
+        </div>
+        <form class="space-y-3 text-xs" id="form-credit-adjust" onsubmit="handleCreditAdjust(event)">
+            <input type="hidden" id="adjust-credit-key" value="">
+            <div>
+                <label class="block font-bold text-slate-300 mb-1">Tipo de Movimento:</label>
+                <select id="adjust-credit-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                    <option value="extra">Pagamento Extra / Amortização (abate ao saldo e regista despesa)</option>
+                    <option value="balance">Acertar Saldo do Extrato Bancário (sem despesa fictícia)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-300 mb-1">Valor (€):</label>
+                <input type="number" step="0.01" id="adjust-credit-amount" required placeholder="0.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-black outline-none">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-300 mb-1">Motivo / Nota:</label>
+                <input type="text" id="adjust-credit-note" required placeholder="Ex: Extrato nov, amortização subsídio..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+            </div>
+            <div class="pt-3 flex gap-2">
+                <button type="button" class="w-1/2 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl" onclick="document.getElementById('modal-credit-adjust').classList.add('hidden')">
+                    Cancelar
+                </button>
+                <button type="submit" class="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow">
+                    Guardar Acerto
+                </button>
+            </div>
+        </form>
     </div>
-    <form id="form-modern-gain" class="space-y-3 text-xs" onsubmit="handleSaveModernGain(event)">
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">Nome do Ganho:</label>
-        <input id="gain-modern-name" type="text" placeholder="Ex.: Ordenado, Venda, Extra" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-slate-300 mb-1">Valor Total (€):</label>
-          <input id="gain-modern-amount" type="number" step="0.01" min="0.01" placeholder="0,00" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-        </div>
-        <div>
-          <label class="block font-bold text-slate-300 mb-1">Quem ganha?</label>
-          <select id="gain-modern-who" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-            <option value="M">Apenas M (🧔)</option>
-            <option value="S">Apenas S (👩)</option>
-            <option value="BOTH">Dividir (50% M / 50% S)</option>
-            <option value="SEMPERFIF">Semperfif (🏪 - exclusivo da aba)</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-bold text-slate-300 mb-1">Dia do Ganho:</label>
-          <input id="gain-modern-day" type="number" min="1" max="31" value="1" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-        </div>
-        <div>
-          <label class="block font-bold text-slate-300 mb-1">Repetição:</label>
-          <select id="gain-modern-repeat" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-            <option value="monthly">Todos os meses</option>
-            <option value="once">Apenas este mês</option>
-          </select>
-        </div>
-      </div>
-      <div class="flex items-center gap-3 pt-3">
-        <button type="button" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl" onclick="document.getElementById('modal-modern-gain').classList.add('hidden')">
-          Cancelar
-        </button>
-        <button type="submit" class="w-1/2 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl shadow-md cartoon-bounce">
-          Criar Ganho
-        </button>
-      </div>
-    </form>
-  </div>
 </div>
 
-<!-- MODAL ACERTAR / EXTRA CRÉDITO -->
-<dialog id="modal-credit-adjust" class="bg-slate-900 border border-slate-700 rounded-2xl p-6 text-slate-100 max-w-md w-full shadow-2xl">
-  <div class="flex justify-between items-center mb-4">
-    <h3 class="text-base font-black text-amber-400">⚙️ Acertar / Pagamento Extra</h3>
-    <button type="button" onclick="document.getElementById('modal-credit-adjust').close()" class="text-slate-400 font-bold">✕ Fechar</button>
-  </div>
-  <form id="form-credit-adjust" onsubmit="handleApplyCreditAdjustment(event)" class="space-y-3 text-xs">
-    <input type="hidden" id="adj-credit-tab">
-    <div>
-      <label class="block font-bold text-slate-300 mb-1">Tipo de Ação:</label>
-      <select id="adj-credit-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-        <option value="extra">Pagamento Extra / Amortizar (abate à dívida)</option>
-        <option value="balance">Acertar Saldo (conforme extrato do banco)</option>
-      </select>
+<!-- MODAL: ADICIONAR NOVO CRÉDITO / DÍVIDA MANUAL -->
+<div id="modal-new-credit" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-lg text-emerald-400 flex items-center gap-2">
+                💳 Adicionar Crédito / Dívida Manual
+            </h3>
+            <button class="text-slate-400 hover:text-white" onclick="document.getElementById('modal-new-credit').classList.add('hidden')">
+                ✕
+            </button>
+        </div>
+        <form class="space-y-3 text-xs" id="form-new-credit" onsubmit="handleCreateManualCredit(event)">
+            <div>
+                <label class="block font-bold text-slate-300 mb-1">Nome do Crédito:</label>
+                <input type="text" id="new-credit-name" required placeholder="Ex: Cartão Gold, Crédito Pessoal..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">A quem pertence:</label>
+                    <select id="new-credit-owner" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                        <option value="M">Miguel (M)</option>
+                        <option value="S">Sofia (S)</option>
+                        <option value="BOTH">Ambos (50/50)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">Prestação Mensal (€):</label>
+                    <input type="number" step="0.01" id="new-credit-installment" required placeholder="200.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">Valor Total (€):</label>
+                    <input type="number" step="0.01" id="new-credit-total" required placeholder="17625.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">Valor Restante (€):</label>
+                    <input type="number" step="0.01" id="new-credit-remaining" required placeholder="4000.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">Meses que faltam:</label>
+                    <input type="number" id="new-credit-months" required placeholder="20" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">Data fim prevista:</label>
+                    <input type="text" id="new-credit-enddate" placeholder="Ex: 20/08/2028" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
+                </div>
+            </div>
+            <div class="pt-3 flex gap-2">
+                <button type="button" class="w-1/2 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl" onclick="document.getElementById('modal-new-credit').classList.add('hidden')">
+                    Cancelar
+                </button>
+                <button type="submit" class="w-1/2 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl shadow">
+                    Criar Crédito
+                </button>
+            </div>
+        </form>
     </div>
-    <div>
-      <label class="block font-bold text-slate-300 mb-1">Valor (€):</label>
-      <input type="number" id="adj-credit-val" step="0.01" required placeholder="0.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-    </div>
-    <div>
-      <label class="block font-bold text-slate-300 mb-1">Nota / Motivo:</label>
-      <input type="text" id="adj-credit-note" placeholder="Ex.: Extrato banco nov / amortização" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-    </div>
-    <div class="flex justify-end gap-3 pt-3">
-      <button type="button" onclick="document.getElementById('modal-credit-adjust').close()" class="px-4 py-2 bg-slate-800 rounded-xl font-bold">Cancelar</button>
-      <button type="submit" class="px-5 py-2 bg-amber-400 text-slate-950 font-black rounded-xl">Confirmar</button>
-    </div>
-  </form>
-</dialog>
-
-
-<!-- MODAL ADICIONAR NOVO CRÉDITO MANUAL (IMAGEM 3) -->
-<dialog id="modal-add-credit-custom" class="bg-slate-900 border border-slate-700 rounded-2xl p-6 text-slate-100 max-w-md w-full shadow-2xl">
-  <div class="flex justify-between items-center mb-4">
-    <h3 class="text-base font-black text-emerald-400">🏛️ Adicionar Crédito / Empréstimo</h3>
-    <button type="button" onclick="document.getElementById('modal-add-credit-custom').close()" class="text-slate-400 font-bold">✕ Fechar</button>
-  </div>
-  <form id="form-add-credit-custom" onsubmit="handleCreateCreditCustom(event)" class="space-y-3 text-xs">
-    <div>
-      <label class="block font-bold text-slate-300 mb-1">Nome do Crédito / Cartão:</label>
-      <input type="text" id="acc-cred-name" required placeholder="Ex.: Bankinter, Universo, Carro" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">A quem Pertence:</label>
-        <select id="acc-cred-who" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-          <option value="M">Miguel (🧔)</option>
-          <option value="S">Sofia (👩)</option>
-          <option value="BOTH">Ambos / Dividido</option>
-        </select>
-      </div>
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">Prestação Mensal (€):</label>
-        <input type="number" id="acc-cred-inst" step="0.01" required placeholder="Ex.: 200.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-      </div>
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">Valor Total Contratado (€):</label>
-        <input type="number" id="acc-cred-total" step="0.01" required placeholder="Ex.: 17625.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-      </div>
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">Valor Restante Atual (€):</label>
-        <input type="number" id="acc-cred-remaining" step="0.01" required placeholder="Ex.: 4000.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-      </div>
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">Meses que Faltam:</label>
-        <input type="number" id="acc-cred-months" required placeholder="Ex.: 20" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-      </div>
-      <div>
-        <label class="block font-bold text-slate-300 mb-1">Data Término Prevista:</label>
-        <input type="text" id="acc-cred-enddate" placeholder="Ex.: 20/08/2028" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-bold outline-none">
-      </div>
-    </div>
-    <div class="flex justify-end gap-3 pt-3">
-      <button type="button" onclick="document.getElementById('modal-add-credit-custom').close()" class="px-4 py-2 bg-slate-800 rounded-xl font-bold">Cancelar</button>
-      <button type="submit" class="px-5 py-2 bg-emerald-500 text-slate-950 font-black rounded-xl">Registar Crédito</button>
-    </div>
-  </form>
-</dialog>
-
+</div>
 
 <script>
-// R33 - Funções de gestão de ganhos, acertos e créditos personalizados
-function openCreditAdjustmentModal(tab) {
-    document.getElementById('adj-credit-tab').value = tab;
-    document.getElementById('modal-credit-adjust').showModal();
+function openCreditAdjustModal(key) {
+    document.getElementById('adjust-credit-key').value = key;
+    document.getElementById('modal-credit-adjust').classList.remove('hidden');
 }
-function handleApplyCreditAdjustment(e) {
+function openNewCreditModal() {
+    document.getElementById('modal-new-credit').classList.remove('hidden');
+}
+function handleCreditAdjust(e) {
     e.preventDefault();
-    const tab = document.getElementById('adj-credit-tab').value;
-    const type = document.getElementById('adj-credit-type').value;
-    const val = parseFloat(document.getElementById('adj-credit-val').value) || 0;
-    const note = document.getElementById('adj-credit-note').value;
+    const key = document.getElementById('adjust-credit-key').value;
+    const type = document.getElementById('adjust-credit-type').value;
+    const amount = parseFloat(document.getElementById('adjust-credit-amount').value);
+    const note = document.getElementById('adjust-credit-note').value.trim();
+    if (isNaN(amount) || amount <= 0) return alert('Insira um valor válido');
 
-    let list = tab === 'carro' ? CREDIT_CARRO_DATA : tab === 'casa' ? CREDIT_CASA_DATA : CREDIT_AB_DATA;
-    if(list && list.length > 0) {
-        const lastPaid = [...list].reverse().find(i => i.status === 'PAID') || list[0];
+    // Atualiza o saldo do crédito
+    let rawList = (key === 'casa') ? CREDIT_CASA_DATA : (key === 'carro') ? CREDIT_CARRO_DATA : CREDIT_AB_DATA;
+    if (rawList && rawList.length > 0) {
         if (type === 'balance') {
-            lastPaid.balance = val;
-        } else if (type === 'extra') {
-            lastPaid.balance = Math.max(0, lastPaid.balance - val);
-        }
-        saveDataToLocalStorage();
-        renderApp();
-    }
-    document.getElementById('modal-credit-adjust').close();
-    alert('Acerto registado com sucesso: ' + val.toFixed(2) + ' € (' + note + ')');
-}
-
-function handleSaveModernGain(e) {
-    e.preventDefault();
-    const name = document.getElementById('gain-modern-name').value;
-    const amount = parseFloat(document.getElementById('gain-modern-amount').value) || 0;
-    const who = document.getElementById('gain-modern-who').value;
-    const day = parseInt(document.getElementById('gain-modern-day').value) || 1;
-    const repeat = document.getElementById('gain-modern-repeat').value;
-
-    // Regra Semperfif: guarda em semperfifGains se for Semperfif, isolado de Geral/M/S
-    if (who === 'SEMPERFIF') {
-        if (!appData.semperfifGains) appData.semperfifGains = [];
-        appData.semperfifGains.push({ name, amount, day, repeat });
-    } else {
-        const key = who === 'M' ? 'm' : who === 'S' ? 's' : 'both';
-        if (key === 'both') {
-            appData.ganhos['m'][currentMonth()] = (appData.ganhos['m'][currentMonth()] || 0) + (amount / 2);
-            appData.ganhos['s'][currentMonth()] = (appData.ganhos['s'][currentMonth()] || 0) + (amount / 2);
+            const last = rawList[rawList.length - 1];
+            if (last) last.balance = amount;
         } else {
-            appData.ganhos[key][currentMonth()] = (appData.ganhos[key][currentMonth()] || 0) + amount;
+            const last = rawList[rawList.length - 1];
+            if (last) last.balance = Math.max(0, last.balance - amount);
+            // Regista despesa de amortização na conta
+            if (appData && appData.accounts) {
+                appData.accounts.push({
+                    name: 'Amortização Extra · ' + key.toUpperCase(),
+                    group: 'Cartões e Créditos',
+                    payer: 'BOTH',
+                    scope: 'geral',
+                    amount: amount,
+                    day: new Date().getDate(),
+                    status: { [selectedMonthIdx]: 'PAID' }
+                });
+            }
         }
     }
-    saveDataToLocalStorage();
-    document.getElementById('modal-modern-gain').classList.add('hidden');
+    document.getElementById('modal-credit-adjust').classList.add('hidden');
     renderApp();
-    alert('Ganho "' + name + '" registado com sucesso!');
+    alert('Acerto guardado com sucesso!');
 }
-
-function openAddCreditCustomModal() {
-    document.getElementById('modal-add-credit-custom').showModal();
-}
-function handleCreateCreditCustom(e) {
+function handleCreateManualCredit(e) {
     e.preventDefault();
-    const name = document.getElementById('acc-cred-name').value;
-    const who = document.getElementById('acc-cred-who').value;
-    const inst = parseFloat(document.getElementById('acc-cred-inst').value) || 0;
-    const total = parseFloat(document.getElementById('acc-cred-total').value) || 0;
-    const rem = parseFloat(document.getElementById('acc-cred-remaining').value) || 0;
-    const months = parseInt(document.getElementById('acc-cred-months').value) || 0;
-    const endDate = document.getElementById('acc-cred-enddate').value;
+    const name = document.getElementById('new-credit-name').value.trim();
+    const owner = document.getElementById('new-credit-owner').value;
+    const inst = parseFloat(document.getElementById('new-credit-installment').value);
+    const total = parseFloat(document.getElementById('new-credit-total').value);
+    const remaining = parseFloat(document.getElementById('new-credit-remaining').value);
+    const months = parseInt(document.getElementById('new-credit-months').value, 10);
+    const enddate = document.getElementById('new-credit-enddate').value.trim();
 
-    const newAcc = {
-        id: Date.now(),
-        name: name,
-        group: 'Cartões e Créditos',
-        payer: who,
-        amount: inst,
-        defaultAmount: inst,
-        day: 1,
-        active: true,
-        creditMeta: { total, remaining: rem, months, endDate }
-    };
-    appData.accounts.push(newAcc);
-    saveDataToLocalStorage();
-    document.getElementById('modal-add-credit-custom').close();
-    renderApp();
-    alert('Crédito "' + name + '" adicionado com sucesso!');
-}
-
-// Ligar o botão "+ Adicionar" da secção de Ganhos para abrir o modal limpo
-document.addEventListener('DOMContentLoaded', () => {
-    const addGainBtn = document.getElementById('r28-add-gain') || document.querySelector('[onclick*="GainModal"]');
-    if (addGainBtn) {
-        addGainBtn.onclick = () => document.getElementById('modal-modern-gain').classList.remove('hidden');
+    if (appData && appData.accounts) {
+        appData.accounts.push({
+            name: name,
+            group: 'Cartões e Créditos',
+            payer: owner,
+            scope: (owner === 'SEMPERFIF') ? 'semperfif' : 'geral',
+            amount: inst,
+            day: 1,
+            creditTotal: total,
+            creditRemaining: remaining,
+            creditMonths: months,
+            creditEndDate: enddate
+        });
+        saveAccountsToLocalStorage();
     }
-});
+    document.getElementById('modal-new-credit').classList.add('hidden');
+    renderApp();
+    alert('Crédito "' + name + '" adicionado com sucesso às contas!');
+}
 </script>
 
 </body>
