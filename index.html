@@ -7023,13 +7023,16 @@ var ContasCore30 = (function () {
         return (records || []).reduce(function (sum, record) {
             if (record.deleted || Number(record.date.slice(0, 4)) !== Number(year) ||
                 (month !== 'all' && Number(record.date.slice(5, 7)) - 1 !== Number(month))) return sum;
+            const n = cents(record.amount);
             const isSemperfif = record.owner === 'SEMPERFIF' || record.owner === 'semperfif';
             if (isSemperfif) {
-                return tab === 'semperfif' ? sum + Number(record.amount || 0) : sum;
+                return tab === 'semperfif' ? sum + n : sum;
             }
             if (tab === 'semperfif') return sum;
-            const parts = allocated(record.amount, record.owner);
-            return sum + (tab === 'geral' ? ((parts.M || 0) + (parts.S || 0)) : (parts[tab.toUpperCase()] || 0));
+            if (record.owner === 'BOTH') {
+                return ['geral', 'm', 's'].includes(tab) ? sum + n : sum;
+            }
+            return (tab === 'geral' || record.owner === tab.toUpperCase()) ? sum + n : sum;
         }, 0);
     }
     function activeEvents(tools, key) {
@@ -7242,7 +7245,7 @@ var ContasCore30 = (function () {
         notify('Alteração registada; aguarda a confirmação do Sheets.', false);
     }
     function ownerSelect(value) {
-        return ['M','S','BOTH','SEMPERFIF'].map(w => '<option value="'+w+'"'+(value===w?' selected':'')+'>'+({BOTH:'M + S — 50/50',SEMPERFIF:'Semperfif'}[w]||w)+'</option>').join('');
+        return ['M','S','BOTH','SEMPERFIF'].map(w => '<option value="'+w+'"'+(value===w?' selected':'')+'>'+({M:'M',S:'S',BOTH:'Ambos',SEMPERFIF:'Semperfif'}[w]||w)+'</option>').join('');
     }
     function moneyField(id,label,value,positive) {
         return '<label for="'+id+'">'+label+'</label><input id="'+id+'" type="number" step="0.01" min="'+(positive?'0.01':'0')+'" required value="'+esc(value ?? '')+'">';
@@ -7338,16 +7341,23 @@ var ContasCore30 = (function () {
         if (panel.hidden) return;
         const query = fold($('r28-search')?.value), showRemoved = $('r30-show-removed').checked;
         const list = $('r30-gain-list'); list.replaceChildren();
-        const visible = (appData.extraGains30 || []).filter(g =>
-            Number(g.date.slice(0,4)) === Number(selectedYear) &&
-            (selectedMonthIdx === 'all' || Number(g.date.slice(5,7))-1 === Number(selectedMonthIdx)) &&
-            (showRemoved || !g.deleted) && (!query || fold(g.description).includes(query)) &&
-            (currentTab==='geral' || Object.hasOwn(C.allocated(g.amount,g.owner),currentTab==='semperfif'?'SEMPERFIF':currentTab.toUpperCase()))
-        ).slice().sort((a,b) => b.date.localeCompare(a.date));
+        const visible = (appData.extraGains30 || []).filter(g => {
+            if (Number(g.date.slice(0,4)) !== Number(selectedYear)) return false;
+            if (selectedMonthIdx !== 'all' && Number(g.date.slice(5,7))-1 !== Number(selectedMonthIdx)) return false;
+            if (!showRemoved && g.deleted) return false;
+            if (query && !fold(g.description).includes(query)) return false;
+            if (g.owner === 'SEMPERFIF') return currentTab === 'semperfif';
+            if (currentTab === 'semperfif') return false;
+            if (currentTab === 'geral') return ['M', 'S', 'BOTH'].includes(g.owner);
+            if (currentTab === 'm') return g.owner === 'M' || g.owner === 'BOTH';
+            if (currentTab === 's') return g.owner === 'S' || g.owner === 'BOTH';
+            return false;
+        }).slice().sort((a,b) => b.date.localeCompare(a.date));
+        const ownerLabels = { M:'M', S:'S', BOTH:'Ambos', SEMPERFIF:'Semperfif' };
         visible.forEach(g => {
             const entry = document.createElement('div'); entry.className='r30-entry'; entry.dataset.void=String(g.deleted);
             const text = document.createElement('p');
-            text.textContent = g.description+' · '+euro(C.cents(g.amount))+' · '+g.date+' · '+g.owner+(g.deleted?' · Removido':'');
+            text.textContent = g.description+' · '+euro(C.cents(g.amount))+' · '+g.date+' · '+(ownerLabels[g.owner]||g.owner)+(g.deleted?' · Removido':'');
             entry.append(text);
             const actions = document.createElement('div'); actions.className='r30-actions';
             if (!g.deleted) actions.append(button('Editar',()=>gainForm(g)));
@@ -7356,7 +7366,7 @@ var ContasCore30 = (function () {
         if (!visible.length) list.textContent='Sem ganhos adicionais para este período, atribuição e pesquisa.';
         $('r30-gain-total').textContent='Adicionais no período: '+euro(C.income(appData.extraGains30,selectedYear,selectedMonthIdx,currentTab));
         if (visible.some(g=>!g.deleted)) $('r28-empty').hidden=true;
-        $('r28-model-note').textContent='Os ganhos antigos mantêm o modelo comum a 2026/2027. Os adicionais têm data e ano próprios; M + S reparte o valor sem perder cêntimos.';
+        $('r28-model-note').textContent='Os ganhos antigos mantêm o modelo comum a 2026/2027. Os adicionais mantêm o valor integral (incluindo Ambos) e Semperfif é exclusivo da loja.';
     }
     function linked(key) {
         const id = tools().configs[key]?.accountId || linkedIds[key];
@@ -7749,15 +7759,16 @@ var ContasCore31 = (function () {
     function parts(g,y,m) {
         const over=g.monthlyValues31?.[periodKey(y,m)];
         const n=C.cents(over?.amount ?? g.amount);
-        if(g.owner!=='BOTH')return {[g.owner]:n};
-        const part=over?.splitM ?? (g.splitM31!==undefined ? (n?Math.round(n*C.cents(g.splitM31)/Math.max(1,C.cents(g.amount))):0)/100 : undefined);
-        const a=part===undefined?Math.floor(n/2):C.cents(part);
-        assert(a<=n,'A divisão do ganho ultrapassa o total.');
-        return {M:a,S:n-a};
+        if(g.owner==='BOTH')return {BOTH:n,M:n,S:n};
+        return {[g.owner]:n};
     }
     function selectedParts(p,tab) {
-        if(tab==='geral')return (p.M||0)+(p.S||0);
-        return p[tab==='semperfif'?'SEMPERFIF':tab.toUpperCase()]||0;
+        if(tab==='geral'){
+            if(p.BOTH!==undefined)return p.BOTH;
+            return (p.M||0)+(p.S||0);
+        }
+        if(tab==='semperfif')return p.SEMPERFIF||0;
+        return p[tab.toUpperCase()]||0;
     }
     function income(records,y,m,tab) {
         const months=m==='all'?Array.from({length:12},(_,i)=>i):[Number(m)];
@@ -7931,17 +7942,28 @@ var ContasCore31 = (function () {
     }
     function gainsList(){
         const s=ui(),q=fold(s.query);let html='';
+        const ownerBadge={M:'M',S:'S',BOTH:'Ambos',SEMPERFIF:'Semperfif'};
         const baseKeys=currentTab==='geral'?['m','s']:[currentTab];
-        const baseRows=baseKeys.filter(w=>!q||fold('Ordenado '+w+' ganhos existentes').includes(q));
-        if(baseRows.length){html+='<div class="r31-group" style="--group-color:#dfefe2">Ganhos existentes</div>'+baseRows.map(w=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+(w==='semperfif'?'Ganhos Semperfif':'Ordenado '+w.toUpperCase())+'</div><div class="r31-muted">'+(Number(selectedYear)<=2027?'Valor legado preservado; editar cria um valor apenas neste ano/mês.':'Sem cópia automática de anos antigos.')+'</div></div><button class="r31-pill" onclick="ContasR31.legacy(\''+w+'\')">'+euro(periods().reduce((n,m)=>n+G.legacy(appData,selectedYear,m,w),0))+'</button></div>').join('');}
+        const baseRows=baseKeys.filter(w=>!q||fold('Ordenado '+w+' ganhos existentes semperfif').includes(q));
+        if(baseRows.length){html+='<div class="r31-group" style="--group-color:#dfefe2">Ganhos existentes (legados)</div>'+baseRows.map(w=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+(w==='semperfif'?'Ganhos Semperfif':'Ordenado '+w.toUpperCase())+'</div><div class="r31-muted">'+(Number(selectedYear)<=2027?'Lógica antiga preservada; editar altera apenas o ano/mês escolhido.':'Sem cópia automática de anos antigos.')+'</div></div><span class="r31-pill PAID" style="cursor:default">'+euro(periods().reduce((n,m)=>n+G.legacy(appData,selectedYear,m,w),0))+'</span><button type="button" class="r31-btn secondary" style="min-height:36px;padding:6px 12px;margin-left:6px" onclick="ContasR31.legacy(\''+w+'\')" aria-label="Editar ganho">✏️ Editar</button></div>').join('');}
         const items=(appData.extraGains30||[]).filter(g=>{
-            if(currentTab==='geral'&&g.owner==='SEMPERFIF'||currentTab==='semperfif'&&g.owner!=='SEMPERFIF'||['m','s'].includes(currentTab)&&!Object.hasOwn(G.parts(g,selectedYear,activeMonth()),currentTab.toUpperCase()))return false;
+            if(g.owner==='SEMPERFIF')return currentTab==='semperfif';
+            if(currentTab==='semperfif')return false;
+            if(currentTab==='m'&&!(g.owner==='M'||g.owner==='BOTH'))return false;
+            if(currentTab==='s'&&!(g.owner==='S'||g.owner==='BOTH'))return false;
+            if(currentTab==='geral'&&!['M','S','BOTH'].includes(g.owner))return false;
             const probe=s.removed?{...g,deleted:false,excludedYears31:{},excludedMonths31:{}}:g;
-            return periods().some(m=>G.occurs(probe,selectedYear,m))&&(!q||fold(g.description+' '+g.category31).includes(q));
+            return periods().some(m=>G.occurs(probe,selectedYear,m))&&(!q||fold(g.description+' '+(g.category31||'')+' '+(ownerBadge[g.owner]||g.owner)).includes(q));
         });
-        [...new Set(items.map(g=>g.category31||'Outros ganhos'))].forEach(category=>{
+        [...new Set(items.map(g=>g.category31||'Ganhos adicionais'))].forEach(category=>{
             html+='<div class="r31-group" style="--group-color:#dfefe2">'+esc(category)+'</div>';
-            items.filter(g=>(g.category31||'Outros ganhos')===category).forEach(g=>{const value=G.income([g],selectedYear,selectedMonthIdx,currentTab);const active=periods().some(m=>G.occurs(g,selectedYear,m));html+='<div class="r31-item'+(!active?' r31-void':'')+'"><div class="r31-grow"><div class="r31-name">'+esc(g.description)+'</div><div class="r31-muted">'+({monthly:'Mensal',yearly:'Anual',once:'Só desta vez'}[g.schedule31?.kind||'once'])+(!active?' · Removido neste período':'')+'</div></div><button class="r31-pill" onclick="ContasR31.gainOptions(\''+g.id+'\')">'+euro(value)+' · dia '+g.date.slice(8)+'</button><button class="r31-more" onclick="ContasR31.gainOptions(\''+g.id+'\')" aria-label="Opções do ganho">⋯</button></div>';});
+            items.filter(g=>(g.category31||'Ganhos adicionais')===category).forEach(g=>{
+                const value=G.income([g],selectedYear,selectedMonthIdx,currentTab);
+                const active=periods().some(m=>G.occurs(g,selectedYear,m));
+                const dateLabel=g.date?g.date.split('-').reverse().join('/'):'';
+                const freqLabel=g.schedule31?.kind==='monthly'?' · Mensal':g.schedule31?.kind==='yearly'?' · Anual':'';
+                html+='<div class="r31-item'+(!active?' r31-void':'')+'"><div class="r31-grow"><div class="r31-name">'+esc(g.description)+'</div><div class="r31-muted">'+(ownerBadge[g.owner]||esc(g.owner))+(dateLabel?' · '+dateLabel:'')+freqLabel+(!active?' · Removido neste período':'')+'</div></div><span class="r31-pill PAID" style="cursor:default">'+euro(value)+'</span><button type="button" class="r31-btn secondary" style="min-height:36px;padding:6px 12px;margin-left:6px" onclick="ContasR31.gain(\''+g.id+'\')" aria-label="Editar '+esc(g.description)+'">✏️ Editar</button><button type="button" class="r31-more" onclick="ContasR31.gainOptions(\''+g.id+'\')" aria-label="Mais opções do ganho">⋯</button></div>';
+            });
         });
         return html||'<div class="r31-empty">Sem ganhos nesta seleção.</div>';
     }
@@ -7965,9 +7987,13 @@ var ContasCore31 = (function () {
                     mInc += G.income(appData.extraGains30, selectedYear, m, currentTab);
                     const mBal = mInc - mExp;
                     return '<button type="button" class="r31-card" style="padding:12px;text-align:left;cursor:pointer;border-radius:16px;border:1px solid var(--r31-line);background:var(--r31-card);" onclick="ContasR31.chooseMonth(' + m + ')">' +
-                        '<div style="font-weight:800;font-size:13px;color:var(--r31-ink);">' + name + '</div>' +
-                        '<div style="font-size:11px;color:var(--r31-muted);margin-top:4px;">Saldo</div>' +
-                        '<div style="font-size:13px;font-weight:800;color:' + (mBal < 0 ? '#dc2626' : '#16a34a') + ';">' + (mBal > 0 ? '+ ' : '') + euro(mBal) + '</div>' +
+                        '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">' +
+                            '<span style="font-weight:800;font-size:13px;color:var(--r31-ink);">' + name + '</span>' +
+                            '<span style="font-size:10px;font-weight:700;color:var(--r31-muted);">↗</span>' +
+                        '</div>' +
+                        '<div style="font-size:11px;color:#16a34a;font-weight:700;margin-top:6px;">Ganhos: ' + euro(mInc) + '</div>' +
+                        '<div style="font-size:11px;color:#dc2626;font-weight:700;margin-top:2px;">Despesas: ' + euro(mExp) + '</div>' +
+                        '<div style="font-size:12px;font-weight:800;margin-top:5px;padding-top:4px;border-top:1px solid var(--r31-line);color:' + (mBal < 0 ? '#dc2626' : '#16a34a') + ';">Saldo: ' + (mBal > 0 ? '+ ' : '') + euro(mBal) + '</div>' +
                     '</button>';
                 }).join('') +
             '</div>';
@@ -7996,17 +8022,43 @@ var ContasCore31 = (function () {
     function expenseFields(){const kind=$('e31-repeat').value;$('e31-custom').hidden=$('e31-owner').value!=='CUSTOM';$('e31-start-field').hidden=kind==='legacy';$('e31-start').required=kind!=='legacy';$('e31-end-field').hidden=kind==='once'||kind==='legacy';}
 
     function gainForm(id){
+        // ALTERADO — garante data pré-selecionada válida e campos obrigatórios (Descrição, Valor, Data, Atribuição)
         const record=id?(appData.extraGains30||[]).find(g=>g.id===id):null;
-        const g=record||{description:'',amount:'',date:period()+'-01',owner:currentTab==='semperfif'?'SEMPERFIF':currentTab==='s'?'S':'M',category31:'',schedule31:{kind:'once'}};
+        const defDay=String(Math.min(new Date().getDate(),new Date(Number(selectedYear),activeMonth()+1,0).getDate())).padStart(2,'0');
+        const g=record||{description:'',amount:'',date:period()+'-'+defDay,owner:currentTab==='semperfif'?'SEMPERFIF':currentTab==='s'?'S':currentTab==='m'?'M':'BOTH',category31:'',schedule31:{kind:'once'}};
         const categories=[...new Set([...(appData.accounts||[]).map(a=>a.group),...(appData.extraGains30||[]).map(g=>g.category31)].filter(Boolean))];
-        dialog(record?'Editar série de ganhos':'Adicionar ganho',field('Descrição','g31-description',g.description,'text','required maxlength="180"')+'<div class="r31-grid">'+field('Valor (€)','g31-amount',g.amount,'number','required min="0.01" max="1000000000" step="0.01"')+field('Primeira data / data única','g31-date',g.date,'date','required')+'</div>'+field('Categoria (nova ou existente)','g31-category',g.category31||'','text','required maxlength="80" list="g31-groups"')+'<datalist id="g31-groups">'+categories.map(s=>'<option value="'+esc(s)+'">').join('')+'</datalist>'+select('Atribuir a','g31-owner',[['M','M'],['S','S'],['BOTH','Dividir M + S'],['SEMPERFIF','Semperfif']],g.owner,'onchange="ContasR31.gainFields()"')+'<div id="g31-split-field" hidden>'+field('Parte de M (€; vazio = metade)','g31-split',g.splitM31??'','number','min="0" step="0.01"')+'</div>'+select('Repetição','g31-repeat',[['once','Só desta vez'],['monthly','Todos os meses'],['yearly','Todos os anos']],g.schedule31?.kind||'once','onchange="ContasR31.gainFields()"')+'<div id="g31-end-field" hidden>'+field('Último mês (opcional)','g31-end',g.schedule31?.end||'','month')+'</div><button class="r31-link" type="button" onclick="document.getElementById(\'g31-note-field\').hidden=false;this.hidden=true">Adicionar / ver nota</button><div id="g31-note-field" hidden>'+field('Nota','g31-note',g.note31||'','text','maxlength="600"')+'</div>'+(record?'<p class="r31-muted" style="margin-top:12px">Esta edição altera a origem da série. Os valores e exclusões definidos para ocorrências individuais mantêm-se. Para alterar só um mês, escolhe Editar ocorrência.</p>':''),()=>{
-            const amount=number('g31-amount'),owner=$('g31-owner').value,date=$('g31-date').value;
-            const next={...(record||{}),id:record?.id||uid('gain'),description:$('g31-description').value.trim(),amount,date,owner,category31:$('g31-category').value.trim(),note31:$('g31-note').value,deleted:record?.deleted||false,createdAt:record?.createdAt||stamp(),updatedAt:stamp(),schedule31:{kind:$('g31-repeat').value,start:date.slice(0,7),end:$('g31-repeat').value==='once'?'':$('g31-end').value}};
-            delete next.splitM31;if(owner==='BOTH'&&$('g31-split').value!=='')next.splitM31=number('g31-split');
+        dialog(record?'Editar ganho adicional':'Adicionar ganho adicional',
+            field('Descrição *','g31-description',g.description,'text','required maxlength="180" placeholder="Ex.: Bónus, Reembolso, Venda..."')+
+            '<div class="r31-grid">'+
+                field('Valor (€) *','g31-amount',g.amount,'number','required min="0.01" max="1000000000" step="0.01" placeholder="0.00"')+
+                field('Data *','g31-date',g.date,'date','required')+
+            '</div>'+
+            select('Atribuição *','g31-owner',[['M','M (Contas M e Vista Geral)'],['S','S (Contas S e Vista Geral)'],['BOTH','Ambos (valor integral, sem divisão 50/50)'],['SEMPERFIF','Semperfif (exclusivo Semperfif)']],g.owner,'required onchange="ContasR31.gainFields()"')+
+            '<details class="r31-details" style="margin-top:14px"><summary>Opções adicionais (categoria, repetição e nota)</summary>'+
+                field('Categoria (opcional)','g31-category',g.category31||'','text','maxlength="80" list="g31-groups" placeholder="Ganhos adicionais"')+
+                '<datalist id="g31-groups">'+categories.map(s=>'<option value="'+esc(s)+'">').join('')+'</datalist>'+
+                select('Repetição','g31-repeat',[['once','Só desta vez'],['monthly','Todos os meses'],['yearly','Todos os anos']],g.schedule31?.kind||'once','onchange="ContasR31.gainFields()"')+
+                '<div id="g31-end-field" hidden>'+field('Último mês (opcional)','g31-end',g.schedule31?.end||'','month')+'</div>'+
+                field('Nota (opcional)','g31-note',g.note31||'','text','maxlength="600"')+
+            '</details>'+
+            (record?'<p class="r31-muted" style="margin-top:12px">Esta edição atualiza o registo mantendo o histórico de revisões.</p>':''),()=>{
+            const desc=$('g31-description').value.trim();
+            const amount=number('g31-amount');
+            const date=$('g31-date').value;
+            const owner=$('g31-owner').value;
+            C.assert(desc,'A descrição é obrigatória.');
+            C.assert(C.date(date),'A data é obrigatória e deve ser válida.');
+            C.assert(['M','S','BOTH','SEMPERFIF'].includes(owner),'A atribuição é obrigatória.');
+            const catVal=($('g31-category')?.value||'').trim()||'Ganhos adicionais';
+            const repKind=$('g31-repeat')?.value||'once';
+            const repEnd=repKind==='once'?'':($('g31-end')?.value||'');
+            const noteVal=$('g31-note')?.value||'';
+            const next={...(record||{}),id:record?.id||uid('gain'),description:desc,amount,date,owner,category31:catVal,note31:noteVal,deleted:record?.deleted||false,createdAt:record?.createdAt||stamp(),updatedAt:stamp(),schedule31:{kind:repKind,start:date.slice(0,7),end:repEnd}};
+            delete next.splitM31;
             change(()=>{appData.extraGains30||=[];if(record){next.revisions=[...(record.revisions||[]),{at:stamp(),before:clone(record)}];appData.extraGains30[appData.extraGains30.indexOf(record)]=next;}else appData.extraGains30.push(next);});
         });gainFields();
     }
-    function gainFields(){$('g31-split-field').hidden=$('g31-owner').value!=='BOTH';$('g31-end-field').hidden=$('g31-repeat').value==='once';}
+    function gainFields(){const el=$('g31-end-field');if(el)el.hidden=($('g31-repeat')?.value||'once')==='once';}
     function gainOptions(id){
         const g=appData.extraGains30.find(g=>g.id===id);dialog(g.description,'<p class="r31-muted">Escolhe uma ação. Remover uma ocorrência não apaga o histórico nem os restantes meses.</p><div class="r31-stack" style="margin-top:15px">'+button('Editar só uma ocorrência','ContasR31.occurrence(\''+id+'\')')+button('Editar origem / série','ContasR31.gain(\''+id+'\')')+button('Remover só este mês','ContasR31.removeGain(\''+id+'\',\'month\')')+button('Remover só este ano','ContasR31.removeGain(\''+id+'\',\'year\')')+button(g.deleted?'Restaurar a série':'Remover a série','ContasR31.removeGain(\''+id+'\',\'series\')')+button('Restaurar o mês e ano selecionados','ContasR31.removeGain(\''+id+'\',\'restore\')')+'</div>',()=>true,'Fechar');
     }
@@ -8020,11 +8072,12 @@ var ContasCore31 = (function () {
             if(kind==='restore'){g.deleted=false;if(g.excludedYears31)delete g.excludedYears31[String(selectedYear)];if(g.excludedMonths31)delete g.excludedMonths31[selectedYear+':'+activeMonth()];}
         });$('r31-dialog').close();
     }
+    // ALTERADO — mantém o valor integral em Ambos (sem divisão 50/50)
     function occurrence(id){
         const g=appData.extraGains30.find(g=>g.id===id),k=selectedYear+':'+activeMonth(),v=g.monthlyValues31?.[k];
-        dialog('Editar ocorrência — '+g.description,field('Mês e ano','g31-period',period(),'month','required')+field('Valor apenas neste mês (€)','g31-occ-amount',v?.amount??g.amount,'number','required min="0" step="0.01"')+(g.owner==='BOTH'?field('Parte de M (€; vazio = metade)','g31-occ-split',v?.splitM??'','number','min="0" step="0.01"'):''),()=>{
+        dialog('Editar ocorrência — '+g.description,field('Mês e ano','g31-period',period(),'month','required')+field('Valor apenas neste mês (€)','g31-occ-amount',v?.amount??g.amount,'number','required min="0" step="0.01"'),()=>{
             const[y,mm]=$('g31-period').value.split('-').map(Number),m=mm-1;C.assert(G.occurs({...g,deleted:false,excludedMonths31:{},excludedYears31:{}},y,m),'Este mês não pertence à série.');
-            const next={amount:number('g31-occ-amount')};if(g.owner==='BOTH'&&$('g31-occ-split').value!=='')next.splitM=number('g31-occ-split');
+            const next={amount:number('g31-occ-amount')};
             change(()=>{g.monthlyValues31||={};g.revisions||=[];g.revisions.push({at:stamp(),period:y+':'+m,before:g.monthlyValues31[y+':'+m]||null});g.monthlyValues31[y+':'+m]=next;});
         });
     }
@@ -8039,31 +8092,46 @@ var ContasCore31 = (function () {
         const ps=Object.keys(parts11(a,selectedYear,m)).filter(w=>Number(parts11(a,selectedYear,m)[w])>0&&(!['m','s'].includes(currentTab)||w===currentTab.toUpperCase()));
         dialog(a.name,'<p class="r31-muted">'+MONTHS[m]+' '+selectedYear+' · '+euro(amount(a,selectedYear,m))+'</p>'+ps.map(w=>'<div class="r31-field"><label>'+esc(w)+'</label><div class="r31-row r31-wrap">'+['PENDING','SEPARATED','PAID'].map(s=>button({PENDING:'Por pagar',SEPARATED:'Separado',PAID:'Pago'}[s],'ContasR31.setStatus(\''+enc(id)+'\','+m+',\''+w+'\',\''+s+'\')',states(a,selectedYear,m)[w]!==s)).join('')+'</div></div>').join('')+'<p class="r31-muted" style="margin-top:12px">Separado é reservado, ainda não pago.</p>',()=>true,'Fechar');
     }
+    // ALTERADO — reproduz som correspondente ao estado (PENDING, SEPARATED, PAID) sem alterar a lógica de estados
     function setStatus(id,m,who,value){
         const a=appData.accounts.find(a=>String(a.id)===String(id));const k=keys.find(k=>String(appData.creditTools30?.configs?.[k]?.accountId||({casa:'1',carro:'11',credito_ab:'16'}[k]))===String(a.id));
         if(k)ContasUI30.historyGuard(k,G.monthString(selectedYear,m)+'-01');
         change(()=>{const p=selectedYear+':'+m;a.personStates||={};a.personStates[p]||={};a.personStates[p][who]=value;syncLinkedCredit(a,m);});
+        if(typeof playSoundForStatus==='function')playSoundForStatus(value);
         statusForm(id,m);
     }
     function expenseOptions(id,m){
         const a=appData.accounts.find(a=>String(a.id)===String(id));if(a.debtMovement31){customDetail(a.debtMovement31.debt);return;}
         dialog(a.name,button('Editar só este mês','ContasR31.monthExpense(\''+enc(id)+'\','+m+')')+' '+button('Editar despesa / recorrência','ContasR31.expense(\''+enc(id)+'\')'),()=>true,'Fechar');
     }
+    const defaultCreditTotals={carro:17625.00,casa:6000.00,credito_ab:5314.04};
+    const defaultCreditMonthly={carro:200.00,casa:200.00,credito_ab:248.61};
+    function initialCreditCents(k,model){
+        if(model?.original>0)return model.original;
+        const rows=creditRows(k);
+        if(rows&&rows.length){
+            const firstWithBal=rows.find(r=>Number(r.balance)>0);
+            if(firstWithBal)return C.cents(Number(firstWithBal.balance));
+        }
+        return C.cents(defaultCreditTotals[k]||0);
+    }
     function creditScreen(k){
         const config=appData.creditTools30?.configs?.[k],model=C.project(creditRows(k),appData.creditTools30,k,today()),list=creditRows(k);
+        const initCents=initialCreditCents(k,model);
         const due=list.filter(r=>r.status!=='BEGINNING'&&C.date(r.date)&&r.date<today()&&r.status!=='PAID');
-        const rate=config?.monthly||0;
+        const rate=config?.monthly||defaultCreditMonthly[k]||0;
         const overdue=config?.mode==='fixed'?Math.max(0,Math.ceil((Math.max(0,(Math.min(C.index(today()),C.index(config.end))-C.index(config.start)+(C.due(C.index(today()),config.day)<today()?1:0))*C.cents(rate))-C.paid(list,'fixed',config.start))/Math.max(1,C.cents(rate)))):due.length;
         const title='<h2>'+names[k]+'</h2>';
-        if(!model.configured)return '<section class="r31-card">'+title+'<p class="r31-note" style="margin-top:15px">Define o plano para calcular o remanescente e a data. Não foram inventados montantes ou datas contratuais.</p><div style="margin-top:15px">'+button('Definir plano','ContasUI30.configForm(\''+k+'\')',false)+'</div></section>';
-        const percent=model.original?Math.max(0,Math.min(100,(model.original-model.remaining)/model.original*100)):0;
-        return '<div class="r31-stack r31-creditgrid"><section class="r31-card"><div class="r31-muted">'+(config.mode==='fixed'?'Falta pagar · prestações fixas':'Capital em dívida · estimativa')+'</div><div class="r31-big">'+euro(model.remaining)+'</div><div class="r31-grid"><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(config.monthly))+'</strong></div><div><span class="r31-muted">Saídas registadas</span><strong>'+euro(model.regularCash+model.extraCash)+'</strong></div></div><div class="r31-progress" role="progressbar" aria-label="Progresso financeiro do modelo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(percent)+'"><div style="width:'+percent+'%"></div></div><p class="r31-muted">'+(model.remainingMonths===null?'Prazo por confirmar':model.remainingMonths+' prestações equivalentes por pagar')+' · '+overdue+' vencimentos por regularizar</p></section><section class="r31-card"><h2 style="margin-bottom:15px">Previsão de fim</h2><div class="r31-grid"><div class="r31-date"><span class="r31-muted">Fim original</span><strong>'+fmt(config.end)+'</strong></div><div class="r31-date"><span class="r31-muted">Fim previsto</span><strong>'+(model.remaining===0?'Liquidado':fmt(model.estimate))+'</strong></div></div><details class="r31-details"><summary>Como é calculado</summary><p>'+(config.mode==='fixed'?'Projeção por prestações fixas sem novos juros. Regularizar uma prestação recupera o atraso correspondente; reabrir a aba não acrescenta meses.':'Projeção por amortização de capital; juros e encargos não abatem capital. Sem amortização prevista não é inventado um prazo.')+'</p><p>O progresso mede valor, não o número de linhas. Saídas registadas incluem encargos; não são capital amortizado.</p>'+(model.missingCapital?'<p>Há prestações sem amortização discriminada: confirma o histórico antes de confiar na previsão.</p>':'')+(model.overpaid?'<p>Os pagamentos excedem o saldo do modelo. Revê os dados.</p>':'')+'</details></section><section class="r31-card r31-wide"><div class="r31-row r31-between"><h2>Prestações por regularizar</h2><span class="r31-muted">'+due.length+' registos</span></div>'+due.slice(-4).map(r=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+MONTHS[Number(r.date.slice(5,7))-1]+' '+r.date.slice(0,4)+'</div></div><button class="r31-pill '+r.status+'" onclick="ContasUI30.historyForm(\''+k+'\',\''+r.date+'\')">'+euro(C.cents(Number(r.installment)||config.monthly))+' · dia '+r.date.slice(8)+'</button></div>').join('')+(!due.length?'<div class="r31-empty">Sem registos vencidos por regularizar.</div>':'')+'<p class="r31-hint">A falta de uma linha histórica não prova que a prestação foi paga; confirma o plano e o histórico.</p></section><section class="r31-wide"><div class="r31-row r31-wrap">'+button('+ Pagamento extra','ContasUI30.extraForm(\''+k+'\')',false)+button('Ver histórico','ContasR31.history(\''+k+'\')')+'</div><details class="r31-details"><summary>Gerir crédito</summary><div class="r31-row r31-wrap" style="margin-top:12px">'+button('Editar plano','ContasUI30.configForm(\''+k+'\')')+button('Corrigir prestação','ContasUI30.historyForm(\''+k+'\')')+button('Acertar saldo','ContasUI30.balanceForm(\''+k+'\')')+button('Movimentos e auditoria','ContasR31.audit(\''+k+'\')')+'</div></details></section></div>';
+        if(!model.configured)return '<section class="r31-card">'+title+'<div class="r31-grid" style="margin-top:14px"><div><span class="r31-muted">Valor inicial do crédito</span><strong>'+euro(initCents)+'</strong></div><div><span class="r31-muted">Mensalidade de referência</span><strong>'+euro(C.cents(rate))+'</strong></div></div><p class="r31-note" style="margin-top:15px">Define o plano para calcular o remanescente e a data prevista de liquidação.</p><div style="margin-top:15px">'+button('Definir plano','ContasUI30.configForm(\''+k+'\')',false)+'</div></section>';
+        const effectiveOriginal=model.original||initCents;
+        const percent=effectiveOriginal?Math.max(0,Math.min(100,(effectiveOriginal-model.remaining)/effectiveOriginal*100)):0;
+        return '<div class="r31-stack r31-creditgrid"><section class="r31-card"><div class="r31-muted">'+(config.mode==='fixed'?'Falta pagar · prestações fixas':'Capital em dívida · estimativa')+'</div><div class="r31-big">'+euro(model.remaining)+'</div><div class="r31-grid" style="grid-template-columns:repeat(3,1fr)"><div><span class="r31-muted">Valor inicial</span><strong>'+euro(effectiveOriginal)+'</strong></div><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(config.monthly))+'</strong></div><div><span class="r31-muted">Saídas registadas</span><strong>'+euro(model.regularCash+model.extraCash)+'</strong></div></div><div class="r31-progress" role="progressbar" aria-label="Progresso financeiro do modelo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(percent)+'"><div style="width:'+percent+'%"></div></div><p class="r31-muted">'+(model.remainingMonths===null?'Prazo por confirmar':model.remainingMonths+' prestações equivalentes por pagar')+' · '+overdue+' vencimentos por regularizar</p></section><section class="r31-card"><h2 style="margin-bottom:15px">Previsão de fim</h2><div class="r31-grid"><div class="r31-date"><span class="r31-muted">Fim original</span><strong>'+fmt(config.end)+'</strong></div><div class="r31-date"><span class="r31-muted">Fim previsto</span><strong>'+(model.remaining===0?'Liquidado':fmt(model.estimate))+'</strong></div></div><details class="r31-details"><summary>Como é calculado</summary><p>'+(config.mode==='fixed'?'Projeção por prestações fixas sem novos juros. Regularizar uma prestação recupera o atraso correspondente; reabrir a aba não acrescenta meses.':'Projeção por amortização de capital; juros e encargos não abatem capital. Sem amortização prevista não é inventado um prazo.')+'</p><p>O progresso mede valor, não o número de linhas. Saídas registadas incluem encargos; não são capital amortizado.</p>'+(model.missingCapital?'<p>Há prestações sem amortização discriminada: confirma o histórico antes de confiar na previsão.</p>':'')+(model.overpaid?'<p>Os pagamentos excedem o saldo do modelo. Revê os dados.</p>':'')+'</details></section><section class="r31-card r31-wide"><div class="r31-row r31-between"><h2>Prestações por regularizar</h2><span class="r31-muted">'+due.length+' registos</span></div>'+due.slice(-4).map(r=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+MONTHS[Number(r.date.slice(5,7))-1]+' '+r.date.slice(0,4)+'</div></div><button class="r31-pill '+r.status+'" onclick="ContasUI30.historyForm(\''+k+'\',\''+r.date+'\')">'+euro(C.cents(Number(r.installment)||config.monthly))+' · dia '+r.date.slice(8)+'</button></div>').join('')+(!due.length?'<div class="r31-empty">Sem registos vencidos por regularizar.</div>':'')+'<p class="r31-hint">A falta de uma linha histórica não prova que a prestação foi paga; confirma o plano e o histórico.</p></section><section class="r31-wide"><div class="r31-row r31-wrap">'+button('+ Pagamento extra','ContasUI30.extraForm(\''+k+'\')',false)+button('Ver histórico','ContasR31.history(\''+k+'\')')+'</div><details class="r31-details"><summary>Gerir crédito</summary><div class="r31-row r31-wrap" style="margin-top:12px">'+button('Editar plano','ContasUI30.configForm(\''+k+'\')')+button('Corrigir prestação','ContasUI30.historyForm(\''+k+'\')')+button('Acertar saldo','ContasUI30.balanceForm(\''+k+'\')')+button('Movimentos e auditoria','ContasR31.audit(\''+k+'\')')+'</div></details></section></div>';
     }
     function history(k){dialog('Histórico — '+names[k],'<p class="r31-muted">Histórico integral recebido, incluindo os anos anteriores a 2026.</p>'+creditRows(k).filter(r=>r.status!=='BEGINNING').map(r=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+fmt(r.date)+'</div><div class="r31-muted">'+({PAID:'Pago',PENDING:'Por pagar',SEPARATED:'Separado'}[r.status]||'Por confirmar')+'</div></div>'+button(euro(C.cents(Number(r.installment||0))),'ContasR31.close();ContasUI30.historyForm(\''+k+'\',\''+r.date+'\')')+'</div>').join(''),()=>true,'Fechar');}
     function audit(k){const events=(appData.creditTools30?.events||[]).filter(e=>e.credit===k).slice().reverse();dialog('Movimentos — '+names[k],events.length?events.map(e=>'<div class="r31-item"><div class="r31-grow"><div class="r31-name">'+({extra:'Pagamento extra',balance:'Acerto de saldo',history:'Correção de prestação'}[e.type])+'</div><div class="r31-muted">'+fmt(e.date)+' · '+esc(e.description)+(e.void?' · Anulado':'')+'</div></div>'+(!(e.type==='history'&&e.void)?button(e.void?'Restaurar':'Anular','ContasR31.close();ContasUI30.undoEvent(\''+e.id+'\')'):'')+'</div>').join(''):'<div class="r31-empty">Ainda não há movimentos adicionais.</div>',()=>true,'Fechar');}
     function creditOwner(k){const id=appData.creditTools30?.configs?.[k]?.accountId||({casa:'1',carro:'11',credito_ab:'16'}[k]);const a=appData.accounts.find(a=>String(a.id)===String(id));return ['M','S'].includes(a?.payer)?a.payer:a?.payer==='BOTH'||a?.payer==='CUSTOM'?'BOTH':null;}
     function debtsScreen(){
-        const t=appData.creditTools30,items=keys.map(k=>({id:k,name:names[k],owner:creditOwner(k),model:C.project(creditRows(k),t,k,today()),monthly:t?.configs?.[k]?.monthly||0,end:t?.configs?.[k]?.end||null,standard:true})).concat((appData.debts31||[]).map(d=>({id:d.id,name:d.name,owner:d.owner,model:G.debtProject(appData,d,today()),monthly:d.monthly,end:d.end})));
+        const t=appData.creditTools30,items=keys.map(k=>{const m=C.project(creditRows(k),t,k,today());if(!m.configured)m.original=initialCreditCents(k,m);return {id:k,name:names[k],owner:creditOwner(k),model:m,monthly:t?.configs?.[k]?.monthly||defaultCreditMonthly[k]||0,end:t?.configs?.[k]?.end||null,standard:true};}).concat((appData.debts31||[]).map(d=>({id:d.id,name:d.name,owner:d.owner,model:G.debtProject(appData,d,today()),monthly:d.monthly,end:d.end})));
         const visible=items.filter(i=>debtFilter==='ALL'||i.owner===debtFilter),configured=visible.filter(i=>i.model.configured),sum=configured.reduce((s,i)=>s+i.model.remaining,0),monthly=visible.reduce((s,i)=>s+C.cents(i.monthly),0),total=configured.reduce((s,i)=>s+i.model.original,0);
         const missing=visible.filter(i=>!i.model.configured).length,unknown=configured.filter(i=>i.model.remaining>0&&!i.model.estimate).length,dates=configured.map(i=>i.model.estimate).filter(Boolean).sort();
         return '<div class="r31-stack"><div class="r31-row r31-between"><div><h2>Dívidas</h2><p class="r31-muted">Referência atual: '+fmt(today())+' · valores partilhados contados uma única vez</p></div>'+button('+ Adicionar','ContasR31.newDebt()',false)+'</div><div class="r31-grid"><div class="r31-card"><span class="r31-muted">Total por pagar'+(missing?' · parcial':'')+'</span><div class="r31-big">'+euro(sum)+'</div></div><div class="r31-card"><span class="r31-muted">Prestações mensais definidas</span><div class="r31-big">'+euro(monthly)+'</div></div><div class="r31-card"><span class="r31-muted">Total dos planos / referências</span><strong>'+euro(total)+'</strong></div><div class="r31-card"><span class="r31-muted">Conclusão do conjunto · estimativa</span><strong>'+(missing||unknown?'Por confirmar':dates.length?fmt(dates.at(-1)):'Sem dívida configurada por pagar')+'</strong></div></div>'+(missing?'<p class="r31-note">Há '+missing+' créditos sem plano definido. O total é parcial; não inclui saldos por confirmar.</p>':'')+'<div class="r31-filters">'+[['ALL','Todos'],['M','M'],['S','S'],['BOTH','Ambos']].map(([k,l])=>'<button class="r31-filter" aria-pressed="'+(debtFilter===k)+'" onclick="ContasR31.debtFilter(\''+k+'\')">'+l+'</button>').join('')+'</div>'+visible.map(i=>'<button type="button" class="r31-card" style="text-align:left;width:100%;cursor:pointer" onclick="'+(i.standard?'switchTab(\''+i.id+'\')':'ContasR31.debt(\''+i.id+'\')')+'"><div class="r31-row r31-between"><h2>'+esc(i.name)+'</h2><span>›</span></div><p class="r31-muted">'+(i.owner==='BOTH'?'Ambos':i.owner||'Titular por confirmar')+'</p><div class="r31-grid" style="margin-top:14px"><div><span class="r31-muted">Mensalidade</span><strong>'+euro(C.cents(i.monthly))+'</strong></div><div><span class="r31-muted">Falta pagar</span><strong>'+(i.model.configured?euro(i.model.remaining):'Por definir')+'</strong></div></div><p class="r31-muted" style="margin-top:12px">'+(i.model.configured?(i.model.remainingMonths===null?'Prazo por confirmar':i.model.remainingMonths+' prestações equivalentes')+' · '+(i.model.remaining===0?'Liquidado':fmt(i.model.estimate)):'Abre o crédito e confirma o plano.')+'</p></button>').join('')+'</div>';
@@ -8187,7 +8255,6 @@ var ContasCore31 = (function () {
             d.innerHTML='<div style="padding:18px;"><div class="r31-row r31-between" style="margin-bottom:14px;"><h2 id="r31-dialog-title" style="font-size:16px;font-weight:750;">Escolher período</h2><button class="r31-close" type="button" aria-label="Fechar" onclick="ContasR31.close()">×</button></div>'+htmlYears+htmlMonths+'</div>';
             d.showModal();
         },
-        'month','required min="1900-01" max="2200-12"'),()=>{const[y,m]=$('r31-period-input').value.split('-').map(Number);selectedYear=y;selectedMonthIdx=m-1;$('month-select').value=selectedMonthIdx;$('year-select').value=y;renderApp();}),
         history:k=>guarded(()=>history(k)),audit:k=>guarded(()=>audit(k)),debtFilter:f=>{debtFilter=f;paint();},newDebt:()=>guarded(()=>{editable();newDebt();}),debt:id=>guarded(()=>customDetail(id)),debtPayment:id=>guarded(()=>debtPayment(id)),customExtra:id=>guarded(()=>customExtra(id)),toggleCustom:(id,event)=>guarded(()=>toggleCustom(id,event)),
         refresh:paint,budget
     };
@@ -8428,7 +8495,6 @@ function handleCreateManualCredit(e) {
 // ==========================================
 function renderAnnualMonthsGrid() {
     document.getElementById('annual-months-grid-container')?.remove();
-    return;
     let grid = document.getElementById('annual-months-grid-container');
     if (selectedMonthIdx !== 'all') {
         if (grid) grid.remove();
@@ -8474,7 +8540,7 @@ function renderAnnualMonthsGrid() {
             mInc += Number(appData.ganhos?.[currentTab]?.[mIdx] || 0);
         }
 
-        (appData.extraGains30||[]).forEach(g=>{if(g.deleted)return;const d=String(g.date||'');if(Number(d.slice(0,4))!==Number(selectedYear)||Number(d.slice(5,7))-1!==mIdx)return;const o=g.owner,t=currentTab;const ok=t==='geral'||(t==='semperfif'?o==='SEMPERFIF':t==='m'?(o==='M'||o==='BOTH'):(o==='S'||o==='BOTH'));if(!ok)return;mInc+=(o==='BOTH'&&(t==='m'||t==='s'))?Number(g.amount)/2:Number(g.amount);});
+        (appData.extraGains30||[]).forEach(g=>{if(g.deleted)return;const d=String(g.date||'');if(Number(d.slice(0,4))!==Number(selectedYear)||Number(d.slice(5,7))-1!==mIdx)return;const o=g.owner,t=currentTab;const ok=(o==='SEMPERFIF')?(t==='semperfif'):(t==='geral'?['M','S','BOTH'].includes(o):t==='m'?(o==='M'||o==='BOTH'):t==='s'?(o==='S'||o==='BOTH'):false);if(!ok)return;mInc+=Number(g.amount);});
         const mBal = mInc - mExp;
         return `
             <div onclick="selectAnnualMonth(${mIdx})" class="annual-month-card cartoon-bounce flex flex-col justify-between">
@@ -8890,7 +8956,8 @@ window.adaptGainsToolbarAndFilters=function(){
   if(a){a.hidden=false;a.onclick=e=>{e.preventDefault();e.stopPropagation();g?openNewGainModalCustom():openNewCategoryModal();};}
 };
 // Ganhos novos: usa o formulário validado da R30 (o painel R30 está oculto por CSS, mas o botão funciona)
-window.openNewGainModalCustom=function(){const b=document.querySelector('#r30-gain-actions button');if(b)b.click();else alert('O formulário de ganhos ainda não carregou. Recarrega a página.');};
+// ALTERADO — abre diretamente o modal unificado de Ganhos R31
+window.openNewGainModalCustom=function(){if(window.ContasR31&&typeof ContasR31.gain==='function'){ContasR31.gain();return;}const b=document.querySelector('#r30-gain-actions button');if(b)b.click();};
 // Créditos: persistir estados e acertos
 const CK='contas_credits_v34',CR={};
 try{CR.carro=CREDIT_CARRO_DATA;CR.casa=CREDIT_CASA_DATA;CR.credito_ab=CREDIT_AB_DATA;}catch(e){}
@@ -8935,5 +9002,1054 @@ document.readyState==='loading'?addEventListener('DOMContentLoaded',go):go();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();
 </script>
+
+<style id="r35-css">
+/* NOVO — temas sazonais */
+#r35-season{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+#r35-season span{position:absolute;top:0;opacity:.6;will-change:transform;animation:r35fall linear infinite}
+#r35-season[data-anim=rise] span{top:auto;bottom:0;animation-name:r35rise}
+@keyframes r35fall{from{transform:translateY(-10vh) rotate(0)}to{transform:translateY(110vh) rotate(360deg)}}
+@keyframes r35rise{from{transform:translateY(10vh) scale(.8)}to{transform:translateY(-110vh) scale(1.2)}}
+html[data-motion30=off] #r35-season span{display:none}
+html[data-motion30=reduced] #r35-season span{animation-duration:45s!important}
+</style>
+
+<script id="r35">
+// NOVO — R35: som, registo de créditos e temas sazonais. Bloco isolado: não altera funções existentes.
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(n||0);
+const todayStr=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+
+/* ===== SOM (Pendente / Separado / Pago) ===== */
+let ctx35=null,unlocked35=false;
+const soundOn35=()=>{try{return JSON.parse(localStorage.getItem('contas_ms_effects30')||'{}').sound===true;}catch(e){return false;}};
+function ctx35get(){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;if(!ctx35||ctx35.state==='closed')ctx35=new C();return ctx35;}
+function unlock35(){const c=ctx35get();if(!c)return;try{if(c.state!=='running')c.resume();
+  if(!unlocked35){const s=c.createBufferSource();s.buffer=c.createBuffer(1,1,22050);s.connect(c.destination);s.start(0);unlocked35=true;}}catch(e){}}
+['pointerdown','touchend','keydown','click'].forEach(ev=>document.addEventListener(ev,unlock35,{capture:true,passive:true}));
+['visibilitychange','pageshow','focus'].forEach(ev=>addEventListener(ev,()=>{if(ctx35&&ctx35.state!=='running'&&!document.hidden)ctx35.resume().catch(()=>{});}));
+function tone35(status){const c=ctx35get();if(!c)return;
+  const go=()=>{const now=c.currentTime+.03,P=status==='PENDING',notes=P?[440,260]:status==='SEPARATED'?[659.25,783.99]:[523.25,659.25,783.99,1046.5],step=P?.16:.09;
+    notes.forEach((hz,i)=>{const t=now+i*step,o=c.createOscillator(),g=c.createGain();o.type=P?'square':'triangle';o.frequency.setValueAtTime(hz,t);
+      g.gain.setValueAtTime(.001,t);g.gain.linearRampToValueAtTime(P?.16:.10,t+.012);g.gain.exponentialRampToValueAtTime(.001,t+step+.04);
+      o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+step+.05);o.onended=()=>{o.disconnect();g.disconnect();};});};
+  c.state==='running'?go():c.resume().then(go).catch(()=>{});}
+// ALTERADO: novo ponto de entrada do som (respeita a preferência guardada e desbloqueia o áudio)
+window.playSoundForStatus=function(status){if(soundOn35())tone35(status);};
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='r30-sound'&&e.target.checked){unlock35();setTimeout(()=>tone35('PAID'),60);}});
+
+/* ===== CRÉDITOS: registo manual (isolado; só localStorage, não toca em despesas nem nas vistas) ===== */
+const LK='contas_credit_ledger_v35';
+const lget=()=>{try{return JSON.parse(localStorage.getItem(LK)||'{}');}catch(e){return {};}};
+const lput=d=>{try{localStorage.setItem(LK,JSON.stringify(d));}catch(e){alert('Não foi possível guardar neste dispositivo.');}};
+const credId=()=>(typeof activeCreditSubTab!=='undefined'&&activeCreditSubTab)||'carro';
+function cur(){const D=lget(),id=credId();D[id]=D[id]||{start:null,mov:[],show:false};return {D,id,E:D[id]};}
+function startOf(E,id){if(E.start!=null)return Number(E.start)||0;
+  try{const A={carro:CREDIT_CARRO_DATA,casa:CREDIT_CASA_DATA,credito_ab:CREDIT_AB_DATA}[id];
+    if(A&&A.length){const lp=[...A].reverse().find(r=>r.status==='PAID');const b=Number((lp||A[0]).balance);if(b>0)return b;}}catch(e){}
+  return {carro:17625.00,casa:6000.00,credito_ab:5314.04}[id]||0;}
+const activeSum=(E,k)=>E.mov.filter(m=>!m.void&&(!k||m.kind===k)).reduce((a,m)=>a+m.amount,0);
+const R35={
+  add(){const {D,id,E}=cur(),kind=$('r35-kind').value,amt=parseFloat(String($('r35-amt').value).replace(',','.')),date=$('r35-date').value,note=$('r35-note').value.trim().slice(0,80);
+    if(!(amt>0))return alert('Indica um valor superior a 0.');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return alert('Indica a data do pagamento.');
+    const st=startOf(E,id),v=Math.round(amt*100)/100,sal=st-activeSum(E);
+    if(v>sal+.005&&!confirm('O valor é superior ao saldo atual ('+eur(sal)+'). Registar mesmo assim?'))return;
+    if(E.start==null)E.start=st;
+    E.mov.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind,amount:v,date,note,ts:Date.now()});
+    lput(D);ledger35();},
+  toggleVoid(mid){const {D,E}=cur(),m=E.mov.find(x=>x.id===mid);if(!m||m.kind!=='EXTRA')return;
+    if(!m.void&&!confirm('Anular este pagamento extra? Pode repô-lo depois.'))return;m.void=!m.void;lput(D);ledger35();},
+  setStart(){const {D,id,E}=cur(),v=parseFloat(String($('r35-start').value).replace(',','.'));
+    if(!(v>=0))return alert('Indica um saldo inicial válido.');E.start=Math.round(v*100)/100;lput(D);ledger35();},
+  toggleShow(){const {D,E}=cur();E.show=!E.show;lput(D);ledger35();}
+};
+window.R35=R35;
+function ledger35(){
+  const host=$('credit-container');if(!host)return;host.querySelector('#r35-ledger')?.remove();
+  const {id,E}=cur(),st=startOf(E,id),inst=activeSum(E,'INST'),ext=activeSum(E,'EXTRA'),saldo=st-inst-ext;
+  const IN='padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.5);background:transparent;color:inherit;font:inherit';
+  const box=(t,v,c)=>'<div style="padding:10px;border-radius:14px;background:rgba(127,127,127,.10)"><div style="font-size:11px;opacity:.7">'+t+'</div><div style="font-weight:800;font-size:17px;'+(c?'color:'+c:'')+'">'+v+'</div></div>';
+  const rows=[...E.mov].filter(m=>E.show||!m.void).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts).map(m=>
+    '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(148,163,184,.25);'+(m.void?'opacity:.5;text-decoration:line-through':'')+'"><div><b>'+(m.kind==='INST'?'Prestação':'Extra')+'</b> · '+esc(m.date.split('-').reverse().join('/'))+(m.note?'<div style="font-size:11px;opacity:.7">'+esc(m.note)+'</div>':'')+'</div><div style="display:flex;gap:8px;align-items:center"><b>'+eur(m.amount)+'</b>'+(m.kind==='EXTRA'?'<button type="button" onclick="R35.toggleVoid(\''+m.id+'\')" style="'+IN+';padding:4px 10px">'+(m.void?'Repor':'Anular')+'</button>':'')+'</div></div>').join('')||'<p style="font-size:12px;opacity:.7">Sem movimentos registados.</p>';
+  host.insertAdjacentHTML('beforeend',
+   '<section id="r35-ledger" style="margin:16px;padding:14px;border-radius:18px;border:1px solid rgba(148,163,184,.35);background:rgba(127,127,127,.06)">'+
+   '<h3 style="font-weight:800;margin:0 0 4px">📒 Registo de pagamentos</h3>'+
+   '<p style="font-size:12px;opacity:.75;margin:0 0 10px">Independente das despesas, Vista Geral, Contas M e Contas S. A mensalidade é só referência: o saldo desce pelo valor registado.</p>'+
+   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+box('Saldo inicial do registo',eur(st))+box('Prestações pagas',eur(inst),'#10b981')+box('Extras',eur(ext),'#0ea5e9')+box('Saldo atual',eur(saldo),saldo<0?'#e11d48':'#f59e0b')+'</div>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><input id="r35-start" type="number" step="0.01" min="0" value="'+st.toFixed(2)+'" style="'+IN+';width:130px"><button type="button" onclick="R35.setStart()" style="'+IN+'">Fixar saldo inicial</button></div>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><select id="r35-kind" style="'+IN+'"><option value="INST">Prestação</option><option value="EXTRA">Pagamento extra</option></select>'+
+   '<input id="r35-amt" type="number" step="0.01" min="0" placeholder="Valor pago €" style="'+IN+';width:130px"><input id="r35-date" type="date" value="'+todayStr()+'" style="'+IN+'"><input id="r35-note" maxlength="80" placeholder="Nota (opcional)" style="'+IN+';flex:1;min-width:120px">'+
+   '<button type="button" onclick="R35.add()" style="'+IN+';font-weight:800">Registar</button></div>'+
+   '<label style="font-size:12px;display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" '+(E.show?'checked':'')+' onchange="R35.toggleShow()"> Mostrar anulados</label>'+rows+'</section>');
+}
+const _rc=window.renderUnifiedCreditsScreen;
+if(typeof _rc==='function')window.renderUnifiedCreditsScreen=function(){const r=_rc.apply(this,arguments);try{ledger35();}catch(e){console.error('R35',e);}return r;};
+
+/* ===== TEMAS SAZONAIS ===== */
+const SK='contas_season35';
+const easter=y=>{const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=(h+l-7*m+114)%31+1;return new Date(y,mo-1,da);};
+const TH={natal:{n:'🎄 Natal',e:['❄️','🎄','⭐','🎁'],a:'fall',t:['rgba(220,38,38,.12)','rgba(22,163,74,.12)']},
+ namorados:{n:'💖 Dia dos Namorados',e:['💖','💕','🌹'],a:'rise',t:['rgba(244,63,94,.12)','rgba(236,72,153,.10)']},
+ carnaval:{n:'🎭 Carnaval',e:['🎭','🎉','🎊'],a:'fall',t:['rgba(168,85,247,.12)','rgba(250,204,21,.12)']},
+ pascoa:{n:'🐣 Páscoa',e:['🐣','🥚','🌷','🐰'],a:'fall',t:['rgba(250,204,21,.12)','rgba(74,222,128,.10)']},
+ halloween:{n:'🎃 Halloween',e:['🎃','🦇','👻'],a:'fall',t:['rgba(249,115,22,.14)','rgba(88,28,135,.14)']},
+ outono:{n:'🍂 Outono',e:['🍂','🍁'],a:'fall',t:['rgba(180,83,9,.10)','rgba(234,179,8,.08)']},
+ verao:{n:'☀️ Verão',e:['☀️','🌴','🍉','🐚'],a:'rise',t:['rgba(251,146,60,.12)','rgba(56,189,248,.12)']}};
+function auto35(d=new Date()){const y=d.getFullYear(),md=(d.getMonth()+1)*100+d.getDate(),df=Math.round((new Date(y,d.getMonth(),d.getDate())-easter(y))/864e5);
+  if(md>=1201||md<=106)return 'natal';if(md>=207&&md<=214)return 'namorados';if(df>=-49&&df<=-46)return 'carnaval';if(df>=-7&&df<=1)return 'pascoa';
+  if(md>=1024&&md<=1101)return 'halloween';if(md>=923&&md<=1115)return 'outono';if(md>=621&&md<=831)return 'verao';return null;}
+function season35(){let k=localStorage.getItem(SK)||'auto';if(k==='auto')k=auto35();let L=$('r35-season');
+  if(!k||!TH[k]){L&&L.remove();return;}const T=TH[k];
+  if(!L){L=document.createElement('div');L.id='r35-season';document.body.prepend(L);}
+  L.dataset.anim=T.a;L.style.background='linear-gradient(180deg,'+T.t[0]+','+T.t[1]+')';
+  L.innerHTML=Array.from({length:16},(_,i)=>{const dur=12+Math.random()*14;return '<span style="left:'+(i*6.25+Math.random()*5).toFixed(1)+'%;font-size:'+(14+Math.random()*16).toFixed(0)+'px;animation-duration:'+dur.toFixed(1)+'s;animation-delay:-'+(Math.random()*dur).toFixed(1)+'s">'+T.e[i%T.e.length]+'</span>';}).join('');}
+function seasonSet35(){const p=document.querySelector('#settings-modal .settings-panel')||$('settings-modal');if(!p)return;
+  let d=$('r35-season-set');if(!d){d=document.createElement('details');d.id='r35-season-set';p.append(d);}
+  d.innerHTML='<summary>🎉 Tema sazonal</summary><select id="r35-season-sel" style="width:100%;margin-top:8px"><option value="auto">Automático (conforme a data)</option><option value="off">Desligado</option>'+Object.entries(TH).map(([k,v])=>'<option value="'+k+'">'+v.n+'</option>').join('')+'</select>';
+  const s=$('r35-season-sel');s.value=localStorage.getItem(SK)||'auto';s.onchange=()=>{try{localStorage.setItem(SK,s.value);}catch(e){}season35();};}
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#settings-open'))setTimeout(seasonSet35,0);});
+document.readyState==='loading'?addEventListener('DOMContentLoaded',season35):season35();
+window.__r35test={auto35,easter};
+})();
+</script>
+
+<style id="r36-css">
+/* NOVO — R36: Temas Sazonais (fundos, emojis e animações) e Créditos Isolados */
+#r36-season-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    transition: background 0.6s ease, opacity 0.6s ease;
+}
+#r36-season-fx {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 42;
+    overflow: hidden;
+}
+#r36-season-fx span {
+    position: absolute;
+    top: -8vh;
+    opacity: 0.72;
+    user-select: none;
+    will-change: transform;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
+    animation: r36fall linear infinite;
+}
+#r36-season-fx[data-anim="rise"] span {
+    top: auto;
+    bottom: -8vh;
+    animation-name: r36rise;
+}
+#r36-season-fx[data-anim="twinkle"] span {
+    top: auto;
+    animation-name: r36twinkle;
+    animation-timing-function: ease-in-out;
+}
+@keyframes r36fall {
+    0% { transform: translate3d(0, -10vh, 0) rotate(0deg); }
+    50% { transform: translate3d(18px, 50vh, 0) rotate(180deg); }
+    100% { transform: translate3d(-12px, 112vh, 0) rotate(360deg); }
+}
+@keyframes r36rise {
+    0% { transform: translate3d(0, 10vh, 0) scale(0.85) rotate(-8deg); opacity: 0.2; }
+    30% { opacity: 0.78; }
+    100% { transform: translate3d(14px, -112vh, 0) scale(1.15) rotate(12deg); opacity: 0.15; }
+}
+@keyframes r36twinkle {
+    0%, 100% { transform: scale(0.75) rotate(-6deg); opacity: 0.25; }
+    50% { transform: scale(1.18) rotate(8deg); opacity: 0.85; }
+}
+html[data-motion30="off"] #r36-season-fx span {
+    display: none !important;
+}
+html[data-motion30="reduced"] #r36-season-fx span {
+    animation-duration: 42s !important;
+    opacity: 0.45;
+}
+#r35-season {
+    display: none !important;
+}
+.r36-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.r36-badge-inst {
+    background: rgba(16, 185, 129, 0.16);
+    color: #059669;
+}
+html.dark .r36-badge-inst {
+    color: #34d399;
+}
+.r36-badge-extra {
+    background: rgba(59, 130, 246, 0.16);
+    color: #2563eb;
+}
+html.dark .r36-badge-extra {
+    color: #60a5fa;
+}
+.r36-badge-void {
+    background: rgba(239, 68, 68, 0.16);
+    color: #dc2626;
+}
+html.dark .r36-badge-void {
+    color: #f87171;
+}
+</style>
+
+<script id="r36">
+// NOVO — R36: Módulo isolado para:
+// 1) + Novo Crédito (registo manual de prestações/extras, histórico e anulação sem afetar despesas/vistas)
+// 2) Som dos estados (Pendente, Separado, Pago) com desbloqueio/reativação mobile e preferência persistente
+// 3) Temas sazonais dinâmicos com emojis, fundos e animações
+(() => {
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const euro = n => (Number(n || 0)).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+    const todayISO = () => {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    };
+    const fmtDate = d => d ? String(d).split('-').reverse().join('/') : '—';
+    const uid = p => p + '_' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+
+    /* =========================================================================
+       1. ÁUDIO & EFEITOS SONOROS (Pendente, Separado, Pago + Mobile/Browser Fix)
+       ========================================================================= */
+    const SOUND_PREF_KEY = 'contas_ms_effects30';
+    let audioCtx36 = null;
+    let audioUnlocked36 = false;
+
+    function isSoundEnabled36() {
+        const chk = $('r30-sound');
+        if (chk && document.activeElement === chk) return chk.checked;
+        try {
+            const raw = JSON.parse(localStorage.getItem(SOUND_PREF_KEY) || '{}');
+            return raw.sound === true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function saveSoundPref36(enabled) {
+        try {
+            const raw = JSON.parse(localStorage.getItem(SOUND_PREF_KEY) || '{}');
+            raw.sound = Boolean(enabled);
+            if (!raw.motion) raw.motion = 'full';
+            localStorage.setItem(SOUND_PREF_KEY, JSON.stringify(raw));
+        } catch (_) {}
+        const chk = $('r30-sound');
+        if (chk) chk.checked = Boolean(enabled);
+    }
+
+    function getAudioCtx36() {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!audioCtx36 || audioCtx36.state === 'closed') {
+            audioCtx36 = new Ctx();
+        }
+        return audioCtx36;
+    }
+
+    // NOVO — Desbloqueio síncrono de áudio para iOS Safari, Chrome Mobile e navegadores modernos
+    function unlockAudio36() {
+        const ctx = getAudioCtx36();
+        if (!ctx) return;
+        try {
+            if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+                ctx.resume().catch(() => {});
+            }
+            if (!audioUnlocked36) {
+                const buf = ctx.createBuffer(1, 1, 22050);
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                src.connect(ctx.destination);
+                src.start(0);
+                audioUnlocked36 = true;
+            }
+        } catch (_) {}
+    }
+
+    ['touchstart', 'touchend', 'pointerdown', 'click', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, unlockAudio36, { capture: true, passive: false });
+    });
+
+    ['visibilitychange', 'pageshow', 'focus'].forEach(evt => {
+        window.addEventListener(evt, () => {
+            if (audioCtx36 && audioCtx36.state !== 'running' && !document.hidden) {
+                audioCtx36.resume().catch(() => {});
+            }
+        });
+    });
+
+    function playStatusTone36(status) {
+        const ctx = getAudioCtx36();
+        if (!ctx) return;
+        unlockAudio36();
+        if (ctx.state !== 'running') {
+            ctx.resume().catch(() => {});
+        }
+        const now = ctx.currentTime + 0.02;
+        const patterns = {
+            PENDING: { freqs: [392.00, 261.63], step: 0.14, type: 'triangle', gain: 0.16 },
+            SEPARATED: { freqs: [587.33, 739.99], step: 0.10, type: 'sine', gain: 0.14 },
+            PAID: { freqs: [523.25, 659.25, 783.99, 1046.50], step: 0.085, type: 'triangle', gain: 0.13 }
+        };
+        const cfg = patterns[status] || patterns.PAID;
+        cfg.freqs.forEach((hz, idx) => {
+            try {
+                const t = now + idx * cfg.step;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = cfg.type;
+                osc.frequency.setValueAtTime(hz, t);
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.linearRampToValueAtTime(cfg.gain, t + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + cfg.step + 0.06);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(t);
+                osc.stop(t + cfg.step + 0.07);
+                osc.onended = () => {
+                    try { osc.disconnect(); gain.disconnect(); } catch (_) {}
+                };
+            } catch (_) {}
+        });
+    }
+
+    // ALTERADO — Substitui o ponto de entrada do som respeitando a preferência guardada
+    window.playSoundForStatus = function (status) {
+        if (!isSoundEnabled36()) return;
+        playStatusTone36(status);
+    };
+
+    function syncSoundCheckbox36() {
+        const chk = $('r30-sound');
+        if (!chk) return;
+        chk.checked = isSoundEnabled36();
+        if (!chk.dataset.r36Bound) {
+            chk.dataset.r36Bound = 'true';
+            chk.addEventListener('change', () => {
+                saveSoundPref36(chk.checked);
+                if (chk.checked) {
+                    unlockAudio36();
+                    playStatusTone36('PAID');
+                }
+            });
+        }
+    }
+
+    /* =========================================================================
+       2. + NOVO CRÉDITO (Totalmente isolado de despesas, Vista Geral, Contas M e Contas S)
+       ========================================================================= */
+    const LEDGER_FALLBACK_KEY = 'contas_isolated_credits_v36';
+    const STD_CREDITS = [
+        { id: 'carro', name: 'Crédito Carro', owner: 'M', defaultInitial: 17625.00, defaultMonthly: 200.00 },
+        { id: 'casa', name: 'Crédito Casa', owner: 'BOTH', defaultInitial: 6000.00, defaultMonthly: 200.00 },
+        { id: 'credito_ab', name: 'Crédito AB', owner: 'M', defaultInitial: 5314.04, defaultMonthly: 248.61 }
+    ];
+
+    function getCreditsStore36() {
+        if (typeof appData !== 'undefined' && appData) {
+            if (!appData.manualCredits36) {
+                let migrated = { custom: [], ledgers: {} };
+                try {
+                    const saved = JSON.parse(localStorage.getItem(LEDGER_FALLBACK_KEY) || 'null');
+                    if (saved && typeof saved === 'object') migrated = saved;
+                    // Migrar eventuais registos da v35
+                    const old35 = JSON.parse(localStorage.getItem('contas_credit_ledger_v35') || 'null');
+                    if (old35 && typeof old35 === 'object') {
+                        Object.entries(old35).forEach(([cid, entry]) => {
+                            if (!migrated.ledgers[cid]) {
+                                migrated.ledgers[cid] = {
+                                    initialBalance: entry.start != null ? Number(entry.start) : null,
+                                    movements: (entry.mov || []).map(m => ({
+                                        id: m.id || uid('mov'),
+                                        type: m.kind === 'EXTRA' ? 'extra' : 'installment',
+                                        amount: Number(m.amount || 0),
+                                        date: m.date || todayISO(),
+                                        note: m.note || '',
+                                        void: Boolean(m.void),
+                                        createdAt: m.ts ? new Date(m.ts).toISOString() : new Date().toISOString()
+                                    }))
+                                };
+                            }
+                        });
+                    }
+                } catch (_) {}
+                appData.manualCredits36 = migrated;
+            }
+            appData.manualCredits36.custom ||= [];
+            appData.manualCredits36.ledgers ||= {};
+            return appData.manualCredits36;
+        }
+        try {
+            return JSON.parse(localStorage.getItem(LEDGER_FALLBACK_KEY) || '{"custom":[],"ledgers":{}}');
+        } catch (_) {
+            return { custom: [], ledgers: {} };
+        }
+    }
+
+    function persistCreditsStore36(store) {
+        try {
+            localStorage.setItem(LEDGER_FALLBACK_KEY, JSON.stringify(store));
+        } catch (_) {}
+        if (typeof appData !== 'undefined' && appData) {
+            appData.manualCredits36 = store;
+            if (typeof saveDataToLocalStorage === 'function') {
+                saveDataToLocalStorage();
+            }
+        }
+    }
+
+    function getStandardBaseInitial36(id) {
+        const meta = STD_CREDITS.find(c => c.id === id);
+        if (!meta) return 0;
+        try {
+            const arr = id === 'carro' ? CREDIT_CARRO_DATA : id === 'casa' ? CREDIT_CASA_DATA : CREDIT_AB_DATA;
+            if (Array.isArray(arr) && arr.length) {
+                const lastPaid = [...arr].reverse().find(r => r.status === 'PAID');
+                const bal = Number((lastPaid || arr[0]).balance);
+                if (bal > 0) return bal;
+            }
+        } catch (_) {}
+        return meta.defaultInitial;
+    }
+
+    function getAllCredits36() {
+        const store = getCreditsStore36();
+        const std = STD_CREDITS.map(c => {
+            const ledger = store.ledgers[c.id] || { initialBalance: null, movements: [] };
+            const initial = ledger.initialBalance != null ? Number(ledger.initialBalance) : getStandardBaseInitial36(c.id);
+            return {
+                id: c.id,
+                name: c.name,
+                owner: c.owner,
+                initialBalance: initial,
+                referenceMonthly: Number(appData?.creditTools30?.configs?.[c.id]?.monthly || c.defaultMonthly),
+                startDate: '',
+                note: '',
+                isStandard: true,
+                movements: ledger.movements || []
+            };
+        });
+        const custom = (store.custom || []).map(c => {
+            const ledger = store.ledgers[c.id] || { initialBalance: Number(c.initialBalance || 0), movements: [] };
+            return {
+                id: c.id,
+                name: c.name,
+                owner: c.owner || 'M',
+                initialBalance: ledger.initialBalance != null ? Number(ledger.initialBalance) : Number(c.initialBalance || 0),
+                referenceMonthly: Number(c.referenceMonthly || 0),
+                startDate: c.startDate || '',
+                note: c.note || '',
+                isStandard: false,
+                movements: ledger.movements || []
+            };
+        });
+        return [...std, ...custom];
+    }
+
+    function computeCreditSummary36(credit) {
+        const active = (credit.movements || []).filter(m => !m.void);
+        const paidInstallments = active.filter(m => m.type === 'installment').reduce((s, m) => s + Number(m.amount || 0), 0);
+        const paidExtras = active.filter(m => m.type === 'extra').reduce((s, m) => s + Number(m.amount || 0), 0);
+        const totalPaid = Math.round((paidInstallments + paidExtras) * 100) / 100;
+        const remaining = Math.max(0, Math.round((Number(credit.initialBalance || 0) - totalPaid) * 100) / 100);
+        return {
+            initial: Number(credit.initialBalance || 0),
+            paidInstallments: Math.round(paidInstallments * 100) / 100,
+            paidExtras: Math.round(paidExtras * 100) / 100,
+            totalPaid,
+            remaining
+        };
+    }
+
+    function openDialog36(title, bodyHTML, onSubmit, submitLabel = 'Guardar') {
+        const d = $('r31-dialog');
+        if (!d) return;
+        if (d.open) d.close();
+        d.innerHTML =
+            '<form id="r36-form">' +
+                '<div class="r31-row r31-between">' +
+                    '<h2 id="r31-dialog-title">' + esc(title) + '</h2>' +
+                    '<button class="r31-close" type="button" aria-label="Fechar" onclick="document.getElementById('r31-dialog').close()">×</button>' +
+                '</div>' +
+                bodyHTML +
+                '<p id="r36-error" role="alert" class="r31-error" hidden></p>' +
+                '<div class="r31-foot">' +
+                    '<button type="button" class="r31-btn secondary" onclick="document.getElementById('r31-dialog').close()">Cancelar</button>' +
+                    (onSubmit ? '<button type="submit" class="r31-btn">' + esc(submitLabel) + '</button>' : '') +
+                '</div>' +
+            '</form>';
+        $('r36-form').onsubmit = e => {
+            e.preventDefault();
+            try {
+                if (onSubmit && onSubmit() !== false) d.close();
+            } catch (err) {
+                const errEl = $('r36-error');
+                errEl.hidden = false;
+                errEl.textContent = err.message;
+            }
+        };
+        d.showModal();
+    }
+
+    // NOVO — Modal "+ Novo Crédito" (100% isolado: não cria despesas nem altera Vista Geral, Contas M ou Contas S)
+    function openNewCreditModal36() {
+        openDialog36(
+            '+ Novo Crédito',
+            '<p class="r31-note">Este crédito é gerido exclusivamente nesta área. Os pagamentos registados aqui <strong>não</strong> alteram as despesas, a Vista Geral, Contas M ou Contas S.</p>' +
+            '<div class="r31-field"><label for="c36-name">Nome do Crédito *</label><input id="c36-name" type="text" required maxlength="120" placeholder="Ex.: Crédito Pessoal, Cartão, Financiamento..."></div>' +
+            '<div class="r31-grid">' +
+                '<div class="r31-field"><label for="c36-initial">Valor Inicial / Saldo a Abater (€) *</label><input id="c36-initial" type="number" step="0.01" min="0.01" required placeholder="0.00"></div>' +
+                '<div class="r31-field"><label for="c36-monthly">Mensalidade de Referência (€)</label><input id="c36-monthly" type="number" step="0.01" min="0" placeholder="Opcional (apenas referência)"></div>' +
+            '</div>' +
+            '<div class="r31-grid">' +
+                '<div class="r31-field"><label for="c36-owner">Titular (apenas filtro)</label><select id="c36-owner"><option value="M">M</option><option value="S">S</option><option value="BOTH">Ambos</option></select></div>' +
+                '<div class="r31-field"><label for="c36-date">Data de Início</label><input id="c36-date" type="date" value="' + todayISO() + '"></div>' +
+            '</div>' +
+            '<div class="r31-field"><label for="c36-note">Observação (opcional)</label><input id="c36-note" type="text" maxlength="200" placeholder="Ex.: Taxa fixa, banco..."></div>',
+            () => {
+                const name = $('c36-name').value.trim();
+                const initial = Number($('c36-initial').value);
+                const monthly = Number($('c36-monthly').value || 0);
+                const owner = $('c36-owner').value;
+                const startDate = $('c36-date').value || todayISO();
+                const note = $('c36-note').value.trim();
+                if (!name) throw new Error('Indica o nome do crédito.');
+                if (!Number.isFinite(initial) || initial <= 0) throw new Error('Indica um valor inicial superior a 0 €.');
+                if (!Number.isFinite(monthly) || monthly < 0) throw new Error('A mensalidade de referência não pode ser negativa.');
+
+                const store = getCreditsStore36();
+                const id = uid('cred36');
+                store.custom.push({
+                    id,
+                    name,
+                    owner,
+                    initialBalance: Math.round(initial * 100) / 100,
+                    referenceMonthly: Math.round(monthly * 100) / 100,
+                    startDate,
+                    note,
+                    createdAt: new Date().toISOString()
+                });
+                store.ledgers[id] = {
+                    initialBalance: Math.round(initial * 100) / 100,
+                    movements: []
+                };
+                persistCreditsStore36(store);
+                if (typeof renderApp === 'function') renderApp();
+                setTimeout(() => openCreditDetail36(id), 40);
+            },
+            'Criar Crédito'
+        );
+    }
+
+    // NOVO — Registar manualmente prestação (valor efetivamente pago + data)
+    function openInstallmentModal36(creditId) {
+        const credit = getAllCredits36().find(c => c.id === creditId);
+        if (!credit) return;
+        const summary = computeCreditSummary36(credit);
+        const refVal = credit.referenceMonthly > 0 ? credit.referenceMonthly.toFixed(2) : '';
+        openDialog36(
+            'Registar Prestação — ' + credit.name,
+            '<p class="r31-note">A mensalidade (' + euro(credit.referenceMonthly) + ') é apenas uma referência. O saldo diminui pelo <strong>valor efetivamente registado</strong> e não cria despesas na Vista Geral, Contas M ou Contas S.</p>' +
+            '<div class="r31-grid">' +
+                '<div class="r31-field"><label for="p36-amount">Valor Efetivamente Pago (€) *</label><input id="p36-amount" type="number" step="0.01" min="0.01" required value="' + esc(refVal) + '" placeholder="0.00"></div>' +
+                '<div class="r31-field"><label for="p36-date">Data do Pagamento *</label><input id="p36-date" type="date" required value="' + todayISO() + '"></div>' +
+            '</div>' +
+            '<div class="r31-field"><label for="p36-note">Nota / Referência (opcional)</label><input id="p36-note" type="text" maxlength="160" placeholder="Ex.: Prestação mensal, débito direto..."></div>' +
+            '<p class="r31-muted" style="margin-top:10px">Saldo atual antes deste registo: <strong>' + euro(summary.remaining) + '</strong></p>',
+            () => {
+                const amount = Number($('p36-amount').value);
+                const date = $('p36-date').value;
+                const note = $('p36-note').value.trim();
+                if (!Number.isFinite(amount) || amount <= 0) throw new Error('Indica um valor pago superior a 0 €.');
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Indica a data do pagamento.');
+
+                const store = getCreditsStore36();
+                store.ledgers[creditId] ||= { initialBalance: credit.initialBalance, movements: [] };
+                store.ledgers[creditId].movements.push({
+                    id: uid('inst36'),
+                    type: 'installment',
+                    amount: Math.round(amount * 100) / 100,
+                    date,
+                    note,
+                    void: false,
+                    createdAt: new Date().toISOString()
+                });
+                persistCreditsStore36(store);
+                if (typeof playSoundForStatus === 'function') playSoundForStatus('PAID');
+                if (typeof renderApp === 'function') renderApp();
+                setTimeout(() => openCreditDetail36(creditId), 40);
+            },
+            'Registar Prestação'
+        );
+    }
+
+    // NOVO — Registar pagamento extra (valor + data), sem afetar despesas nem vistas
+    function openExtraPaymentModal36(creditId) {
+        const credit = getAllCredits36().find(c => c.id === creditId);
+        if (!credit) return;
+        const summary = computeCreditSummary36(credit);
+        openDialog36(
+            'Pagamento Extra — ' + credit.name,
+            '<p class="r31-note">Abate diretamente ao saldo deste crédito pelo valor registado. Não cria despesas nem altera a Vista Geral, Contas M ou Contas S.</p>' +
+            '<div class="r31-grid">' +
+                '<div class="r31-field"><label for="x36-amount">Valor do Pagamento Extra (€) *</label><input id="x36-amount" type="number" step="0.01" min="0.01" required placeholder="0.00"></div>' +
+                '<div class="r31-field"><label for="x36-date">Data do Pagamento *</label><input id="x36-date" type="date" required value="' + todayISO() + '"></div>' +
+            '</div>' +
+            '<div class="r31-field"><label for="x36-note">Descrição / Motivo (opcional)</label><input id="x36-note" type="text" maxlength="160" placeholder="Ex.: Amortização antecipada, subsídio..."></div>' +
+            '<p class="r31-muted" style="margin-top:10px">Saldo atual em dívida: <strong>' + euro(summary.remaining) + '</strong></p>',
+            () => {
+                const amount = Number($('x36-amount').value);
+                const date = $('x36-date').value;
+                const note = $('x36-note').value.trim();
+                if (!Number.isFinite(amount) || amount <= 0) throw new Error('Indica um valor superior a 0 €.');
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Indica a data do pagamento extra.');
+
+                const store = getCreditsStore36();
+                store.ledgers[creditId] ||= { initialBalance: credit.initialBalance, movements: [] };
+                store.ledgers[creditId].movements.push({
+                    id: uid('ext36'),
+                    type: 'extra',
+                    amount: Math.round(amount * 100) / 100,
+                    date,
+                    note,
+                    void: false,
+                    createdAt: new Date().toISOString()
+                });
+                persistCreditsStore36(store);
+                if (typeof playSoundForStatus === 'function') playSoundForStatus('PAID');
+                if (typeof renderApp === 'function') renderApp();
+                setTimeout(() => openCreditDetail36(creditId), 40);
+            },
+            'Registar Pagamento Extra'
+        );
+    }
+
+    // NOVO — Anular ou restaurar movimento extra (atualizando o saldo automaticamente)
+    function toggleExtraVoid36(creditId, movementId, reopenModal = true) {
+        const store = getCreditsStore36();
+        const ledger = store.ledgers[creditId];
+        if (!ledger) return;
+        const mov = (ledger.movements || []).find(m => m.id === movementId);
+        if (!mov || mov.type !== 'extra') return;
+        if (!mov.void && !confirm('Anular este pagamento extra de ' + euro(mov.amount) + '? O saldo será recalculado.')) return;
+        mov.void = !mov.void;
+        mov.updatedAt = new Date().toISOString();
+        persistCreditsStore36(store);
+        if (typeof renderApp === 'function') renderApp();
+        if (reopenModal) setTimeout(() => openCreditDetail36(creditId), 30);
+    }
+
+    function deleteManualCredit36(creditId) {
+        const store = getCreditsStore36();
+        const idx = (store.custom || []).findIndex(c => c.id === creditId);
+        if (idx < 0) return;
+        if (!confirm('Eliminar este crédito da lista? Esta ação não afeta nenhuma conta ou despesa.')) return;
+        store.custom.splice(idx, 1);
+        delete store.ledgers[creditId];
+        persistCreditsStore36(store);
+        const d = $('r31-dialog');
+        if (d && d.open) d.close();
+        if (typeof renderApp === 'function') renderApp();
+    }
+
+    function renderLedgerHistoryHTML36(credit, filterType = 'ALL', showVoided = true) {
+        const list = [...(credit.movements || [])]
+            .filter(m => (filterType === 'ALL' || m.type === filterType) && (showVoided || !m.void))
+            .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+        if (!list.length) {
+            return '<div class="r31-empty">Sem prestações ou pagamentos extra registados neste crédito.</div>';
+        }
+        return list.map(m => {
+            const isExtra = m.type === 'extra';
+            return '<div class="r31-item' + (m.void ? ' r31-void' : '') + '" style="padding-left:8px;padding-right:8px;min-height:56px">' +
+                '<div class="r31-grow">' +
+                    '<div class="r31-row r31-wrap" style="gap:6px">' +
+                        '<span class="r36-badge ' + (isExtra ? 'r36-badge-extra' : 'r36-badge-inst') + '">' + (isExtra ? 'Pagamento Extra' : 'Prestação') + '</span>' +
+                        '<strong style="font-size:13px">' + fmtDate(m.date) + '</strong>' +
+                        (m.void ? '<span class="r36-badge r36-badge-void">Anulado</span>' : '') +
+                    '</div>' +
+                    (m.note ? '<div class="r31-muted" style="margin-top:3px">' + esc(m.note) + '</div>' : '') +
+                '</div>' +
+                '<strong style="font-size:14px;font-variant-numeric:tabular-nums;' + (m.void ? 'text-decoration:line-through' : '') + '">' + euro(m.amount) + '</strong>' +
+                (isExtra ? '<button type="button" class="r31-btn secondary" style="min-height:34px;padding:5px 11px;margin-left:8px" onclick="ContasCredits36.toggleVoid('' + esc(credit.id) + '','' + esc(m.id) + '',true)">' + (m.void ? 'Restaurar' : 'Anular') + '</button>' : '') +
+            '</div>';
+        }).join('');
+    }
+
+    // NOVO — Consulta completa do crédito: saldo, mensalidade de referência, ações e histórico
+    function openCreditDetail36(creditId, filterType = 'ALL') {
+        const credit = getAllCredits36().find(c => c.id === creditId);
+        if (!credit) return;
+        const s = computeCreditSummary36(credit);
+        const pct = s.initial > 0 ? Math.max(0, Math.min(100, ((s.initial - s.remaining) / s.initial) * 100)) : 0;
+        openDialog36(
+            credit.name,
+            '<div class="r31-card" style="padding:14px;margin-top:10px">' +
+                '<div class="r31-muted">Saldo atual em dívida</div>' +
+                '<div class="r31-big ' + (s.remaining === 0 ? 'r31-positive' : '') + '">' + euro(s.remaining) + '</div>' +
+                '<div class="r31-progress" style="margin:10px 0"><div style="width:' + pct.toFixed(1) + '%"></div></div>' +
+                '<div class="r31-grid" style="margin-top:10px">' +
+                    '<div><span class="r31-muted">Valor inicial</span><strong>' + euro(s.initial) + '</strong></div>' +
+                    '<div><span class="r31-muted">Mensalidade (referência)</span><strong>' + (credit.referenceMonthly > 0 ? euro(credit.referenceMonthly) : '—') + '</strong></div>' +
+                    '<div><span class="r31-muted">Prestações registadas</span><strong class="r31-positive">' + euro(s.paidInstallments) + '</strong></div>' +
+                    '<div><span class="r31-muted">Pagamentos extra</span><strong style="color:var(--r31-accent)">' + euro(s.paidExtras) + '</strong></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="r31-row r31-wrap" style="margin-top:14px">' +
+                '<button type="button" class="r31-btn" onclick="ContasCredits36.openInstallment('' + esc(credit.id) + '')">+ Registar Prestação</button>' +
+                '<button type="button" class="r31-btn secondary" onclick="ContasCredits36.openExtra('' + esc(credit.id) + '')">+ Pagamento Extra</button>' +
+            '</div>' +
+            '<p class="r31-muted" style="margin-top:8px">A mensalidade é apenas uma referência: o saldo diminui pelo valor efetivamente registado. Sem impacto nas despesas, Vista Geral, Contas M ou Contas S.</p>' +
+            '<div style="margin-top:16px;border-top:1px solid var(--r31-line);padding-top:12px">' +
+                '<div class="r31-row r31-between r31-wrap" style="margin-bottom:8px">' +
+                    '<strong>Histórico de Prestações e Extras</strong>' +
+                    '<div class="r31-filters">' +
+                        [['ALL', 'Todos'], ['installment', 'Prestações'], ['extra', 'Extras']].map(([k, lbl]) =>
+                            '<button type="button" class="r31-filter" aria-pressed="' + (filterType === k) + '" onclick="ContasCredits36.openDetail('' + esc(credit.id) + '','' + k + '')">' + lbl + '</button>'
+                        ).join('') +
+                    '</div>' +
+                '</div>' +
+                '<div style="max-height:260px;overflow-y:auto">' + renderLedgerHistoryHTML36(credit, filterType, true) + '</div>' +
+            '</div>' +
+            (!credit.isStandard ? '<div style="margin-top:12px;text-align:left"><button type="button" class="r31-link" style="color:#dc2626!important" onclick="ContasCredits36.deleteCredit('' + esc(credit.id) + '')">Eliminar crédito manual</button></div>' : ''),
+            null,
+            'Fechar'
+        );
+    }
+
+    // NOVO — Secção embutida na aba do crédito (Casa, Carro, Crédito AB) para registo isolado
+    function renderInlineCreditSection36(creditId) {
+        const credit = getAllCredits36().find(c => c.id === creditId);
+        if (!credit) return '';
+        const s = computeCreditSummary36(credit);
+        return '<section class="r31-card r31-wide" id="r36-inline-credit" style="margin-top:16px">' +
+            '<div class="r31-row r31-between r31-wrap">' +
+                '<div>' +
+                    '<h3>📒 Registo Manual de Prestações & Pagamentos Extra</h3>' +
+                    '<p class="r31-muted">Isolado das despesas, Vista Geral, Contas M e Contas S. A mensalidade é apenas referência.</p>' +
+                '</div>' +
+                '<div class="r31-row r31-wrap">' +
+                    '<button type="button" class="r31-btn secondary" onclick="ContasCredits36.openNew()">+ Novo Crédito</button>' +
+                    '<button type="button" class="r31-btn" onclick="ContasCredits36.openInstallment('' + esc(credit.id) + '')">+ Registar Prestação</button>' +
+                    '<button type="button" class="r31-btn secondary" onclick="ContasCredits36.openExtra('' + esc(credit.id) + '')">+ Pagamento Extra</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="r31-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-top:14px">' +
+                '<div class="r31-date"><span class="r31-muted">Saldo Inicial</span><strong>' + euro(s.initial) + '</strong></div>' +
+                '<div class="r31-date"><span class="r31-muted">Prestações Pagas</span><strong class="r31-positive">' + euro(s.paidInstallments) + '</strong></div>' +
+                '<div class="r31-date"><span class="r31-muted">Pagamentos Extra</span><strong style="color:var(--r31-accent)">' + euro(s.paidExtras) + '</strong></div>' +
+                '<div class="r31-date"><span class="r31-muted">Saldo Atual</span><strong class="' + (s.remaining > 0 ? 'r31-negative' : 'r31-positive') + '">' + euro(s.remaining) + '</strong></div>' +
+            '</div>' +
+            '<div style="margin-top:14px">' + renderLedgerHistoryHTML36(credit, 'ALL', true) + '</div>' +
+        '</section>';
+    }
+
+    // NOVO — Ecrã unificado da aba Dívidas / Créditos com "+ Novo Crédito"
+    let ownerFilter36 = 'ALL';
+    function renderIsolatedDebtsScreen36() {
+        const all = getAllCredits36();
+        const visible = all.filter(c => ownerFilter36 === 'ALL' || c.owner === ownerFilter36);
+        const summaries = visible.map(c => ({ credit: c, sum: computeCreditSummary36(c) }));
+        const totalRemaining = summaries.reduce((acc, x) => acc + x.sum.remaining, 0);
+        const totalPaid = summaries.reduce((acc, x) => acc + x.sum.totalPaid, 0);
+        const totalRefMonthly = visible.reduce((acc, c) => acc + Number(c.referenceMonthly || 0), 0);
+
+        return '<div class="r31-stack">' +
+            '<div class="r31-row r31-between r31-wrap">' +
+                '<div>' +
+                    '<h2>Créditos & Dívidas</h2>' +
+                    '<p class="r31-muted">Gestão isolada: pagamentos registados aqui não alteram despesas, Vista Geral, Contas M ou Contas S.</p>' +
+                '</div>' +
+                '<button type="button" class="r31-btn" onclick="ContasCredits36.openNew()">+ Novo Crédito</button>' +
+            '</div>' +
+            '<div class="r31-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">' +
+                '<div class="r31-card"><span class="r31-muted">Saldo Total em Dívida</span><div class="r31-big">' + euro(totalRemaining) + '</div></div>' +
+                '<div class="r31-card"><span class="r31-muted">Total Já Amortizado</span><div class="r31-big r31-positive">' + euro(totalPaid) + '</div></div>' +
+                '<div class="r31-card"><span class="r31-muted">Mensalidades (Referência)</span><strong>' + euro(totalRefMonthly) + ' / mês</strong><p class="r31-muted" style="margin-top:4px">Apenas referência</p></div>' +
+            '</div>' +
+            '<div class="r31-filters">' +
+                [['ALL', 'Todos'], ['M', 'M'], ['S', 'S'], ['BOTH', 'Ambos']].map(([k, l]) =>
+                    '<button type="button" class="r31-filter" aria-pressed="' + (ownerFilter36 === k) + '" onclick="ContasCredits36.setFilter('' + k + '')">' + l + '</button>'
+                ).join('') +
+            '</div>' +
+            summaries.map(({ credit, sum }) => {
+                const pct = sum.initial > 0 ? Math.max(0, Math.min(100, ((sum.initial - sum.remaining) / sum.initial) * 100)) : 0;
+                return '<div class="r31-card">' +
+                    '<div class="r31-row r31-between r31-wrap">' +
+                        '<div>' +
+                            '<h3>' + esc(credit.name) + '</h3>' +
+                            '<p class="r31-muted">' + (credit.owner === 'BOTH' ? 'Ambos' : esc(credit.owner)) +
+                            (credit.referenceMonthly > 0 ? ' · Mensalidade de referência: ' + euro(credit.referenceMonthly) : '') + '</p>' +
+                        '</div>' +
+                        '<div class="r31-row r31-wrap">' +
+                            '<button type="button" class="r31-btn" style="min-height:36px;padding:7px 13px" onclick="ContasCredits36.openInstallment('' + esc(credit.id) + '')">+ Prestação</button>' +
+                            '<button type="button" class="r31-btn secondary" style="min-height:36px;padding:7px 13px" onclick="ContasCredits36.openExtra('' + esc(credit.id) + '')">+ Extra</button>' +
+                            '<button type="button" class="r31-btn secondary" style="min-height:36px;padding:7px 13px" onclick="ContasCredits36.openDetail('' + esc(credit.id) + '')">Histórico (' + (credit.movements || []).length + ')</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="r31-grid" style="margin-top:14px">' +
+                        '<div><span class="r31-muted">Valor Inicial</span><strong>' + euro(sum.initial) + '</strong></div>' +
+                        '<div><span class="r31-muted">Saldo Atual</span><strong class="' + (sum.remaining > 0 ? 'r31-negative' : 'r31-positive') + '">' + euro(sum.remaining) + '</strong></div>' +
+                    '</div>' +
+                    '<div class="r31-progress" style="margin:12px 0 4px"><div style="width:' + pct.toFixed(1) + '%"></div></div>' +
+                    '<p class="r31-muted">Prestações: ' + euro(sum.paidInstallments) + ' · Pagamentos extra: ' + euro(sum.paidExtras) + '</p>' +
+                '</div>';
+            }).join('') +
+        '</div>';
+    }
+
+    window.ContasCredits36 = {
+        openNew: openNewCreditModal36,
+        openInstallment: openInstallmentModal36,
+        openExtra: openExtraPaymentModal36,
+        openDetail: openCreditDetail36,
+        toggleVoid: toggleExtraVoid36,
+        deleteCredit: deleteManualCredit36,
+        setFilter: f => { ownerFilter36 = f; if (typeof renderApp === 'function') renderApp(); }
+    };
+
+    // Integrar com ContasR31.refresh / renderApp sem alterar a lógica core das despesas ou vistas
+    function hookCreditViews36() {
+        if (!window.ContasR31 || ContasR31._r36Hooked) return;
+        ContasR31._r36Hooked = true;
+        ContasR31.newDebt = openNewCreditModal36;
+        const origRefresh = ContasR31.refresh;
+        ContasR31.refresh = function () {
+            origRefresh.apply(this, arguments);
+            const host = $('r31-content');
+            if (!host || typeof currentTab === 'undefined') return;
+            if (currentTab === 'dividas') {
+                host.innerHTML = renderIsolatedDebtsScreen36();
+            } else if (['casa', 'carro', 'credito_ab'].includes(currentTab)) {
+                host.querySelector('#r36-inline-credit')?.remove();
+                host.insertAdjacentHTML('beforeend', renderInlineCreditSection36(currentTab));
+            }
+        };
+    }
+
+    /* =========================================================================
+       3. TEMAS SAZONAIS (Natal, Ano Novo, Namorados, Carnaval, Primavera, Páscoa, Santos, Verão, Outono, Halloween)
+       ========================================================================= */
+    const SEASON_STORAGE_KEY = 'contas_season35';
+
+    function calcEaster36(year) {
+        const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+        const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const month = Math.floor((h + l - 7 * m + 114) / 31);
+        const day = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(year, month - 1, day);
+    }
+
+    const SEASON_THEMES_36 = {
+        natal: {
+            label: '🎄 Natal',
+            emojis: ['❄️', '🎄', '🎅', '⭐', '🎁', '🔔', '🦌', '✨'],
+            anim: 'fall',
+            bgDark: 'radial-gradient(circle at 15% 10%, rgba(220, 38, 38, 0.22), transparent 45%), radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.22), transparent 45%), linear-gradient(180deg, rgba(15, 23, 42, 0.15), rgba(6, 78, 59, 0.22))',
+            bgLight: 'radial-gradient(circle at 15% 10%, rgba(220, 38, 38, 0.14), transparent 45%), radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.16), transparent 45%), linear-gradient(180deg, rgba(254, 242, 242, 0.45), rgba(236, 253, 245, 0.45))'
+        },
+        anonovo: {
+            label: '🥂 Ano Novo',
+            emojis: ['🥂', '🎆', '✨', '🎊', '🥳', '🍾', '🌟'],
+            anim: 'rise',
+            bgDark: 'radial-gradient(circle at 50% 15%, rgba(245, 158, 11, 0.24), transparent 55%), linear-gradient(180deg, rgba(30, 27, 75, 0.20), rgba(15, 23, 42, 0.25))',
+            bgLight: 'radial-gradient(circle at 50% 15%, rgba(245, 158, 11, 0.16), transparent 55%), linear-gradient(180deg, rgba(254, 252, 232, 0.5), rgba(238, 242, 255, 0.4))'
+        },
+        namorados: {
+            label: '💖 Dia dos Namorados',
+            emojis: ['💖', '💕', '🌹', '💘', '💌', '🥰', '✨'],
+            anim: 'rise',
+            bgDark: 'radial-gradient(circle at 20% 20%, rgba(244, 63, 94, 0.22), transparent 50%), radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.20), transparent 50%)',
+            bgLight: 'radial-gradient(circle at 20% 20%, rgba(244, 63, 94, 0.14), transparent 50%), radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.14), transparent 50%)'
+        },
+        carnaval: {
+            label: '🎭 Carnaval',
+            emojis: ['🎭', '🎉', '🎊', '🥳', '🪩', '💃', '🎺'],
+            anim: 'fall',
+            bgDark: 'radial-gradient(circle at 20% 15%, rgba(168, 85, 247, 0.24), transparent 48%), radial-gradient(circle at 80% 20%, rgba(234, 179, 8, 0.20), transparent 48%)',
+            bgLight: 'radial-gradient(circle at 20% 15%, rgba(168, 85, 247, 0.14), transparent 48%), radial-gradient(circle at 80% 20%, rgba(234, 179, 8, 0.14), transparent 48%)'
+        },
+        primavera: {
+            label: '🌷 Primavera',
+            emojis: ['🌸', '🌷', '🌼', '🦋', '🌿', '🐝', '☀️'],
+            anim: 'fall',
+            bgDark: 'radial-gradient(circle at 18% 12%, rgba(244, 114, 182, 0.18), transparent 48%), radial-gradient(circle at 82% 18%, rgba(52, 211, 153, 0.18), transparent 48%)',
+            bgLight: 'radial-gradient(circle at 18% 12%, rgba(244, 114, 182, 0.14), transparent 48%), radial-gradient(circle at 82% 18%, rgba(52, 211, 153, 0.14), transparent 48%)'
+        },
+        pascoa: {
+            label: '🐣 Páscoa',
+            emojis: ['🐣', '🥚', '🐰', '🌷', '🍫', '🌼', '✨'],
+            anim: 'twinkle',
+            bgDark: 'radial-gradient(circle at 25% 15%, rgba(250, 204, 21, 0.20), transparent 50%), radial-gradient(circle at 75% 25%, rgba(74, 222, 128, 0.18), transparent 50%)',
+            bgLight: 'radial-gradient(circle at 25% 15%, rgba(250, 204, 21, 0.16), transparent 50%), radial-gradient(circle at 75% 25%, rgba(74, 222, 128, 0.14), transparent 50%)'
+        },
+        santos: {
+            label: '🔥 Santos Populares',
+            emojis: ['🏮', '🔥', '🐟', '🎉', '🌿', '🎶', '✨'],
+            anim: 'rise',
+            bgDark: 'radial-gradient(circle at 20% 15%, rgba(239, 68, 68, 0.22), transparent 48%), radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.20), transparent 48%)',
+            bgLight: 'radial-gradient(circle at 20% 15%, rgba(239, 68, 68, 0.14), transparent 48%), radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.14), transparent 48%)'
+        },
+        verao: {
+            label: '☀️ Verão',
+            emojis: ['☀️', '🌴', '🍉', '🐚', '🌊', '🍦', '🕶️'],
+            anim: 'rise',
+            bgDark: 'radial-gradient(circle at 85% 10%, rgba(251, 146, 60, 0.24), transparent 45%), radial-gradient(circle at 15% 85%, rgba(56, 189, 248, 0.20), transparent 50%)',
+            bgLight: 'radial-gradient(circle at 85% 10%, rgba(251, 146, 60, 0.18), transparent 45%), radial-gradient(circle at 15% 85%, rgba(56, 189, 248, 0.15), transparent 50%)'
+        },
+        outono: {
+            label: '🍂 Outono',
+            emojis: ['🍂', '🍁', '🌰', '🍄', '🧣', '☕'],
+            anim: 'fall',
+            bgDark: 'radial-gradient(circle at 20% 12%, rgba(217, 119, 6, 0.22), transparent 50%), radial-gradient(circle at 80% 80%, rgba(180, 83, 9, 0.18), transparent 50%)',
+            bgLight: 'radial-gradient(circle at 20% 12%, rgba(217, 119, 6, 0.14), transparent 50%), radial-gradient(circle at 80% 80%, rgba(180, 83, 9, 0.12), transparent 50%)'
+        },
+        halloween: {
+            label: '🎃 Halloween',
+            emojis: ['🎃', '🦇', '👻', '🕷️', '🕸️', '🕯️', '🧙'],
+            anim: 'fall',
+            bgDark: 'radial-gradient(circle at 20% 15%, rgba(249, 115, 22, 0.24), transparent 48%), radial-gradient(circle at 80% 20%, rgba(126, 34, 206, 0.26), transparent 50%)',
+            bgLight: 'radial-gradient(circle at 20% 15%, rgba(249, 115, 22, 0.15), transparent 48%), radial-gradient(circle at 80% 20%, rgba(126, 34, 206, 0.14), transparent 50%)'
+        }
+    };
+
+    function detectAutoSeason36(d = new Date()) {
+        const y = d.getFullYear();
+        const md = (d.getMonth() + 1) * 100 + d.getDate();
+        const easterDiff = Math.round((new Date(y, d.getMonth(), d.getDate()) - calcEaster36(y)) / 86400000);
+        if (md >= 1227 || md <= 102) return 'anonovo';
+        if (md >= 1201 || md <= 106) return 'natal';
+        if (md >= 207 && md <= 215) return 'namorados';
+        if (easterDiff >= -50 && easterDiff <= -46) return 'carnaval';
+        if (easterDiff >= -7 && easterDiff <= 1) return 'pascoa';
+        if (md >= 1024 && md <= 1102) return 'halloween';
+        if (md >= 610 && md <= 630) return 'santos';
+        if (md >= 320 && md <= 609) return 'primavera';
+        if (md >= 701 && md <= 922) return 'verao';
+        if (md >= 923 && md <= 1130) return 'outono';
+        return 'primavera';
+    }
+
+    function applySeasonalTheme36() {
+        let pref = 'auto';
+        try { pref = localStorage.getItem(SEASON_STORAGE_KEY) || 'auto'; } catch (_) {}
+        const key = pref === 'auto' ? detectAutoSeason36() : pref;
+        let bgLayer = $('r36-season-bg');
+        let fxLayer = $('r36-season-fx');
+
+        if (!key || key === 'off' || !SEASON_THEMES_36[key]) {
+            bgLayer?.remove();
+            fxLayer?.remove();
+            return;
+        }
+
+        const theme = SEASON_THEMES_36[key];
+        const isDark = document.documentElement.classList.contains('dark');
+
+        if (!bgLayer) {
+            bgLayer = document.createElement('div');
+            bgLayer.id = 'r36-season-bg';
+            document.body.prepend(bgLayer);
+        }
+        bgLayer.style.background = isDark ? theme.bgDark : theme.bgLight;
+
+        if (!fxLayer) {
+            fxLayer = document.createElement('div');
+            fxLayer.id = 'r36-season-fx';
+            document.body.append(fxLayer);
+        }
+        fxLayer.dataset.anim = theme.anim;
+        const count = 18;
+        fxLayer.innerHTML = Array.from({ length: count }, (_, i) => {
+            const emoji = theme.emojis[i % theme.emojis.length];
+            const left = ((i * (100 / count)) + (Math.sin(i * 1.7) * 2.5 + 2.5)).toFixed(1);
+            const size = (15 + (i % 4) * 5);
+            const dur = (13 + (i % 5) * 3.2).toFixed(1);
+            const delay = (-((i * 2.3) % 16)).toFixed(1);
+            const topExtra = theme.anim === 'twinkle' ? 'top:' + (8 + ((i * 19) % 80)) + 'vh;' : '';
+            return '<span style="left:' + left + '%;' + topExtra + 'font-size:' + size + 'px;animation-duration:' + dur + 's;animation-delay:' + delay + 's">' + emoji + '</span>';
+        }).join('');
+    }
+
+    function buildSeasonalSettings36() {
+        const panel = document.querySelector('#settings-modal .settings-panel') || $('settings-modal');
+        if (!panel) return;
+        $('r35-season-set')?.remove();
+        let box = $('r36-season-set');
+        if (!box) {
+            box = document.createElement('details');
+            box.id = 'r36-season-set';
+            box.open = true;
+            panel.append(box);
+        }
+        const currentAuto = SEASON_THEMES_36[detectAutoSeason36()]?.label || '';
+        box.innerHTML =
+            '<summary>🎉 Temas Sazonais & Ambiente</summary>' +
+            '<label for="r36-season-sel">Tema da época</label>' +
+            '<select id="r36-season-sel" style="width:100%;margin-top:6px">' +
+                '<option value="auto">Automático conforme a data (' + esc(currentAuto) + ')</option>' +
+                '<option value="off">Desligado</option>' +
+                Object.entries(SEASON_THEMES_36).map(([k, v]) => '<option value="' + k + '">' + esc(v.label) + '</option>').join('') +
+            '</select>' +
+            '<p style="font-size:12px;opacity:.8;margin-top:8px">Aplica fundos suaves e animações temáticas conforme a altura do ano (Natal, Páscoa, Santos Populares, Verão, Halloween, etc.).</p>';
+        const sel = $('r36-season-sel');
+        try { sel.value = localStorage.getItem(SEASON_STORAGE_KEY) || 'auto'; } catch (_) { sel.value = 'auto'; }
+        sel.onchange = () => {
+            try { localStorage.setItem(SEASON_STORAGE_KEY, sel.value); } catch (_) {}
+            applySeasonalTheme36();
+        };
+    }
+
+    // Reaplicar fundo sazonal se o utilizador alternar entre Dark e Light mode
+    new MutationObserver(() => applySeasonalTheme36()).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+
+    function initR36() {
+        syncSoundCheckbox36();
+        hookCreditViews36();
+        applySeasonalTheme36();
+        if (typeof appData !== 'undefined' && appData && window.ContasR31) {
+            ContasR31.refresh();
+        }
+    }
+
+    document.addEventListener('click', e => {
+        if (e.target.closest && e.target.closest('#settings-open')) {
+            setTimeout(() => {
+                syncSoundCheckbox36();
+                buildSeasonalSettings36();
+            }, 0);
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initR36);
+    } else {
+        initR36();
+    }
+    setTimeout(initR36, 400);
+})();
+</script>
+
 </body>
 </html>
