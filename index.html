@@ -1891,6 +1891,14 @@ function loadLocalStorageData() {
         }));
         saveDataToLocalStorage();
     }
+    // NOVO — garante campos sincronizáveis sem alterar dados existentes
+    appData.visualPrefs30 = appData.visualPrefs30 || {};
+    appData.manualCredits30 = Array.isArray(appData.manualCredits30) ? appData.manualCredits30 : [];
+    // NOVO — aplica preferências visuais guardadas no estado sincronizado
+    if (appData.visualPrefs30 && Object.keys(appData.visualPrefs30).length) {
+        viewPrefs = JSON.parse(JSON.stringify(appData.visualPrefs30));
+        try { localStorage.setItem('contas_pwa_visual_v1', JSON.stringify(viewPrefs)); } catch (e) {}
+    }
 }
 function saveDataToLocalStorage() {
     localStorage.setItem('contas_pwa_manual_v1', JSON.stringify(appData));
@@ -3012,6 +3020,11 @@ document.addEventListener('DOMContentLoaded',()=>{
             };
             localStorage.setItem('contas_pwa_visual_v1',JSON.stringify(next));
             viewPrefs=next;
+            // NOVO — sincroniza logo/texto/efeito; o fundo fica apenas neste dispositivo
+            const syncPrefs=JSON.parse(JSON.stringify(next));
+            Object.values(syncPrefs).forEach(p=>{delete p.background;});
+            appData.visualPrefs30=syncPrefs;
+            saveDataToLocalStorage();
             renderApp();
             close()
         }
@@ -3212,6 +3225,11 @@ playSoundForStatus=async function(status){
     function apply(data){
         if(!data||!Array.isArray(data.appData?.accounts)||!data.appData.ganhos||!['casa','carro','credito_ab'].every(k=>Array.isArray(data.credits?.[k])))throw Error('Estado incompleto. Não foram inicializados dados vazios.');
         appData=data.appData;
+        // NOVO — aplica preferências visuais recebidas do Sheets
+        if(appData.visualPrefs30&&typeof appData.visualPrefs30==='object'){
+            viewPrefs=JSON.parse(JSON.stringify(appData.visualPrefs30));
+            try{localStorage.setItem('contas_pwa_visual_v1',JSON.stringify(viewPrefs));}catch(e){}
+        }
         [[CREDIT_CASA_DATA,data.credits.casa],[CREDIT_CARRO_DATA,data.credits.carro],[CREDIT_AB_DATA,data.credits.credito_ab]].forEach(([to,from])=>to.splice(0,to.length,...from));
         appData.accounts.forEach(migrateAnnualStates);
         renderApp();
@@ -8395,7 +8413,8 @@ function handleCreateManualCredit(e) {
             creditMonths: months,
             creditEndDate: enddate
         });
-        saveAccountsToLocalStorage();
+        // ALTERADO — usa a função de gravação/sincronização existente
+        saveDataToLocalStorage();
     }
     document.getElementById('modal-new-credit').classList.add('hidden');
     renderApp();
