@@ -6635,6 +6635,7 @@ html.dark .r27-danger button {
                 }
                 // Compatibilidade explícita: a versão recebida partilha ganhos entre 2026/2027.
                 // Não copiar esses valores para anos novos nem alterar esse modelo silenciosamente.
+                income += (window.customGainsCents36 ? customGainsCents36(month, true) : 0); // ALTERADO: ganhos criados com + Adicionar
                 if (Number(selectedYear) > 2027) continue;
                 const keys = currentTab === 'geral' ? ['m', 's', 'semperfif'] : [currentTab];
                 for (const key of keys) income += Math.round(Number(appData.ganhos[key]?.[month] || 0) * 100);
@@ -7320,6 +7321,7 @@ var ContasCore30 = (function () {
                 if (!belongs) return;
                 Object.entries(parts11(a,selectedYear,month)).forEach(([person,n]) => { if (!who || person === who) expense += Math.round(Number(n || 0)*100); });
             });
+            base += (window.customGainsCents36 ? customGainsCents36(month, false) : 0); // ALTERADO: ganhos criados com + Adicionar
             if (Number(selectedYear) <= 2027) {
                 const people = currentTab === 'geral' ? ['m','s'] : [currentTab];
                 people.forEach(key => { base += Math.round(Number(appData.ganhos[key]?.[month] || 0)*100); });
@@ -7356,7 +7358,7 @@ var ContasCore30 = (function () {
         if (!visible.length) list.textContent='Sem ganhos adicionais para este período, atribuição e pesquisa.';
         $('r30-gain-total').textContent='Adicionais no período: '+euro(C.income(appData.extraGains30,selectedYear,selectedMonthIdx,currentTab));
         if (visible.some(g=>!g.deleted)) $('r28-empty').hidden=true;
-        $('r28-model-note').textContent='Os ganhos antigos mantêm o modelo comum a 2026/2027. Os adicionais têm data e ano próprios; M + S reparte o valor sem perder cêntimos.';
+        $('r28-model-note').textContent='Os ganhos antigos mantêm o modelo comum a 2026/2027. Os ganhos criados com + Adicionar valem só para o mês em que são registados.';
     }
     function linked(key) {
         const id = tools().configs[key]?.accountId || linkedIds[key];
@@ -8876,7 +8878,6 @@ html:not(.dark) #credit-container thead{background:#e2e8f0!important}
 .settings-panel details:nth-of-type(3){border-left-color:#0ea5e9;background:rgba(14,165,233,.08)}
 .settings-panel details:nth-of-type(4){border-left-color:#f59e0b;background:rgba(245,158,11,.08)}
 .settings-panel button{border-radius:12px}
-#r30-gains:not([hidden]){display:block!important}
 </style>
 
 <script id="r34">
@@ -8933,6 +8934,325 @@ function buildCats(){
 const go=()=>{['r28-gains','r28-expenses'].forEach(id=>$(id)?.addEventListener('click',()=>adaptGainsToolbarAndFilters()));adaptGainsToolbarAndFilters();syncView();$('settings-open')?.addEventListener('click',()=>{syncView();buildCats();});paintGroups();};
 document.readyState==='loading'?addEventListener('DOMContentLoaded',go):go();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+})();
+</script>
+
+<style id="r35-css">
+/* NOVO — temas sazonais */
+#r35-season{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+#r35-season span{position:absolute;top:0;opacity:.6;will-change:transform;animation:r35fall linear infinite}
+#r35-season[data-anim=rise] span{top:auto;bottom:0;animation-name:r35rise}
+@keyframes r35fall{from{transform:translateY(-10vh) rotate(0)}to{transform:translateY(110vh) rotate(360deg)}}
+@keyframes r35rise{from{transform:translateY(10vh) scale(.8)}to{transform:translateY(-110vh) scale(1.2)}}
+html[data-motion30=off] #r35-season span{display:none}
+html[data-motion30=reduced] #r35-season span{animation-duration:45s!important}
+</style>
+
+<script id="r35">
+// NOVO — R35: som, registo de créditos e temas sazonais. Bloco isolado: não altera funções existentes.
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(n||0);
+const todayStr=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+
+/* ===== SOM (Pendente / Separado / Pago) ===== */
+let ctx35=null,unlocked35=false;
+const soundOn35=()=>{try{return JSON.parse(localStorage.getItem('contas_ms_effects30')||'{}').sound===true;}catch(e){return false;}};
+function ctx35get(){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;if(!ctx35||ctx35.state==='closed')ctx35=new C();return ctx35;}
+function unlock35(){const c=ctx35get();if(!c)return;try{if(c.state!=='running')c.resume();
+  if(!unlocked35){const s=c.createBufferSource();s.buffer=c.createBuffer(1,1,22050);s.connect(c.destination);s.start(0);unlocked35=true;}}catch(e){}}
+['pointerdown','touchend','keydown','click'].forEach(ev=>document.addEventListener(ev,unlock35,{capture:true,passive:true}));
+['visibilitychange','pageshow','focus'].forEach(ev=>addEventListener(ev,()=>{if(ctx35&&ctx35.state!=='running'&&!document.hidden)ctx35.resume().catch(()=>{});}));
+function tone35(status){const c=ctx35get();if(!c)return;
+  const go=()=>{const now=c.currentTime+.03,P=status==='PENDING',notes=P?[440,260]:status==='SEPARATED'?[659.25,783.99]:[523.25,659.25,783.99,1046.5],step=P?.16:.09;
+    notes.forEach((hz,i)=>{const t=now+i*step,o=c.createOscillator(),g=c.createGain();o.type=P?'square':'triangle';o.frequency.setValueAtTime(hz,t);
+      g.gain.setValueAtTime(.001,t);g.gain.linearRampToValueAtTime(P?.16:.10,t+.012);g.gain.exponentialRampToValueAtTime(.001,t+step+.04);
+      o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+step+.05);o.onended=()=>{o.disconnect();g.disconnect();};});};
+  c.state==='running'?go():c.resume().then(go).catch(()=>{});}
+// ALTERADO: novo ponto de entrada do som (respeita a preferência guardada e desbloqueia o áudio)
+window.playSoundForStatus=function(status){if(soundOn35())tone35(status);};
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='r30-sound'&&e.target.checked){unlock35();setTimeout(()=>tone35('PAID'),60);}});
+
+/* ===== CRÉDITOS: registo manual (isolado; só localStorage, não toca em despesas nem nas vistas) ===== */
+const LK='contas_credit_ledger_v35';
+const lget=()=>{try{return JSON.parse(localStorage.getItem(LK)||'{}');}catch(e){return {};}};
+const lput=d=>{try{localStorage.setItem(LK,JSON.stringify(d));}catch(e){alert('Não foi possível guardar neste dispositivo.');}};
+const credId=()=>(typeof activeCreditSubTab!=='undefined'&&activeCreditSubTab)||'carro';
+function cur(){const D=lget(),id=credId();D[id]=D[id]||{start:null,mov:[],show:false};return {D,id,E:D[id]};}
+function startOf(E,id){if(E.start!=null)return Number(E.start)||0;
+  try{const A={carro:CREDIT_CARRO_DATA,casa:CREDIT_CASA_DATA,credito_ab:CREDIT_AB_DATA}[id];
+    if(A&&A.length){const lp=[...A].reverse().find(r=>r.status==='PAID');return Number((lp||A[0]).balance)||0;}}catch(e){}
+  return 0;}
+const activeSum=(E,k)=>E.mov.filter(m=>!m.void&&(!k||m.kind===k)).reduce((a,m)=>a+m.amount,0);
+const R35={
+  add(){const {D,id,E}=cur(),kind=$('r35-kind').value,amt=parseFloat(String($('r35-amt').value).replace(',','.')),date=$('r35-date').value,note=$('r35-note').value.trim().slice(0,80);
+    if(!(amt>0))return alert('Indica um valor superior a 0.');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return alert('Indica a data do pagamento.');
+    const st=startOf(E,id),v=Math.round(amt*100)/100,sal=st-activeSum(E);
+    if(v>sal+.005&&!confirm('O valor é superior ao saldo atual ('+eur(sal)+'). Registar mesmo assim?'))return;
+    if(E.start==null)E.start=st;
+    E.mov.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind,amount:v,date,note,ts:Date.now()});
+    lput(D);ledger35();},
+  toggleVoid(mid){const {D,E}=cur(),m=E.mov.find(x=>x.id===mid);if(!m||m.kind!=='EXTRA')return;
+    if(!m.void&&!confirm('Anular este pagamento extra? Pode repô-lo depois.'))return;m.void=!m.void;lput(D);ledger35();},
+  setStart(){const {D,id,E}=cur(),v=parseFloat(String($('r35-start').value).replace(',','.'));
+    if(!(v>=0))return alert('Indica um saldo inicial válido.');E.start=Math.round(v*100)/100;lput(D);ledger35();},
+  toggleShow(){const {D,E}=cur();E.show=!E.show;lput(D);ledger35();}
+};
+window.R35=R35;
+function ledger35(){
+  const host=$('credit-container');if(!host)return;host.querySelector('#r35-ledger')?.remove();
+  const {id,E}=cur(),st=startOf(E,id),inst=activeSum(E,'INST'),ext=activeSum(E,'EXTRA'),saldo=st-inst-ext;
+  const IN='padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.5);background:transparent;color:inherit;font:inherit';
+  const box=(t,v,c)=>'<div style="padding:10px;border-radius:14px;background:rgba(127,127,127,.10)"><div style="font-size:11px;opacity:.7">'+t+'</div><div style="font-weight:800;font-size:17px;'+(c?'color:'+c:'')+'">'+v+'</div></div>';
+  const rows=[...E.mov].filter(m=>E.show||!m.void).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts).map(m=>
+    '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(148,163,184,.25);'+(m.void?'opacity:.5;text-decoration:line-through':'')+'"><div><b>'+(m.kind==='INST'?'Prestação':'Extra')+'</b> · '+esc(m.date.split('-').reverse().join('/'))+(m.note?'<div style="font-size:11px;opacity:.7">'+esc(m.note)+'</div>':'')+'</div><div style="display:flex;gap:8px;align-items:center"><b>'+eur(m.amount)+'</b>'+(m.kind==='EXTRA'?'<button type="button" onclick="R35.toggleVoid(\''+m.id+'\')" style="'+IN+';padding:4px 10px">'+(m.void?'Repor':'Anular')+'</button>':'')+'</div></div>').join('')||'<p style="font-size:12px;opacity:.7">Sem movimentos registados.</p>';
+  host.insertAdjacentHTML('beforeend',
+   '<section id="r35-ledger" style="margin:16px;padding:14px;border-radius:18px;border:1px solid rgba(148,163,184,.35);background:rgba(127,127,127,.06)">'+
+   '<h3 style="font-weight:800;margin:0 0 4px">📒 Registo de pagamentos</h3>'+
+   '<p style="font-size:12px;opacity:.75;margin:0 0 10px">Independente das despesas, Vista Geral, Contas M e Contas S. A mensalidade é só referência: o saldo desce pelo valor registado.</p>'+
+   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+box('Saldo inicial do registo',eur(st))+box('Prestações pagas',eur(inst),'#10b981')+box('Extras',eur(ext),'#0ea5e9')+box('Saldo atual',eur(saldo),saldo<0?'#e11d48':'#f59e0b')+'</div>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><input id="r35-start" type="number" step="0.01" min="0" value="'+st.toFixed(2)+'" style="'+IN+';width:130px"><button type="button" onclick="R35.setStart()" style="'+IN+'">Fixar saldo inicial</button></div>'+
+   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><select id="r35-kind" style="'+IN+'"><option value="INST">Prestação</option><option value="EXTRA">Pagamento extra</option></select>'+
+   '<input id="r35-amt" type="number" step="0.01" min="0" placeholder="Valor pago €" style="'+IN+';width:130px"><input id="r35-date" type="date" value="'+todayStr()+'" style="'+IN+'"><input id="r35-note" maxlength="80" placeholder="Nota (opcional)" style="'+IN+';flex:1;min-width:120px">'+
+   '<button type="button" onclick="R35.add()" style="'+IN+';font-weight:800">Registar</button></div>'+
+   '<label style="font-size:12px;display:flex;gap:6px;align-items:center;margin-bottom:6px"><input type="checkbox" '+(E.show?'checked':'')+' onchange="R35.toggleShow()"> Mostrar anulados</label>'+rows+'</section>');
+}
+const _rc=window.renderUnifiedCreditsScreen;
+if(typeof _rc==='function')window.renderUnifiedCreditsScreen=function(){const r=_rc.apply(this,arguments);try{ledger35();}catch(e){console.error('R35',e);}return r;};
+
+/* ===== TEMAS SAZONAIS ===== */
+const SK='contas_season35';
+const easter=y=>{const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),da=(h+l-7*m+114)%31+1;return new Date(y,mo-1,da);};
+const TH={natal:{n:'🎄 Natal',e:['❄️','🎄','⭐','🎁'],a:'fall',t:['rgba(220,38,38,.12)','rgba(22,163,74,.12)']},
+ namorados:{n:'💖 Dia dos Namorados',e:['💖','💕','🌹'],a:'rise',t:['rgba(244,63,94,.12)','rgba(236,72,153,.10)']},
+ carnaval:{n:'🎭 Carnaval',e:['🎭','🎉','🎊'],a:'fall',t:['rgba(168,85,247,.12)','rgba(250,204,21,.12)']},
+ pascoa:{n:'🐣 Páscoa',e:['🐣','🥚','🌷','🐰'],a:'fall',t:['rgba(250,204,21,.12)','rgba(74,222,128,.10)']},
+ halloween:{n:'🎃 Halloween',e:['🎃','🦇','👻'],a:'fall',t:['rgba(249,115,22,.14)','rgba(88,28,135,.14)']},
+ outono:{n:'🍂 Outono',e:['🍂','🍁'],a:'fall',t:['rgba(180,83,9,.10)','rgba(234,179,8,.08)']},
+ verao:{n:'☀️ Verão',e:['☀️','🌴','🍉','🐚'],a:'rise',t:['rgba(251,146,60,.12)','rgba(56,189,248,.12)']}};
+function auto35(d=new Date()){const y=d.getFullYear(),md=(d.getMonth()+1)*100+d.getDate(),df=Math.round((new Date(y,d.getMonth(),d.getDate())-easter(y))/864e5);
+  if(md>=1201||md<=106)return 'natal';if(md>=207&&md<=214)return 'namorados';if(df>=-49&&df<=-46)return 'carnaval';if(df>=-7&&df<=1)return 'pascoa';
+  if(md>=1024&&md<=1101)return 'halloween';if(md>=923&&md<=1115)return 'outono';if(md>=621&&md<=831)return 'verao';return null;}
+function season35(){let k=localStorage.getItem(SK)||'auto';if(k==='auto')k=auto35();let L=$('r35-season');
+  if(!k||!TH[k]){L&&L.remove();return;}const T=TH[k];
+  if(!L){L=document.createElement('div');L.id='r35-season';document.body.prepend(L);}
+  L.dataset.anim=T.a;L.style.background='linear-gradient(180deg,'+T.t[0]+','+T.t[1]+')';
+  L.innerHTML=Array.from({length:16},(_,i)=>{const dur=12+Math.random()*14;return '<span style="left:'+(i*6.25+Math.random()*5).toFixed(1)+'%;font-size:'+(14+Math.random()*16).toFixed(0)+'px;animation-duration:'+dur.toFixed(1)+'s;animation-delay:-'+(Math.random()*dur).toFixed(1)+'s">'+T.e[i%T.e.length]+'</span>';}).join('');}
+function seasonSet35(){const p=document.querySelector('#settings-modal .settings-panel')||$('settings-modal');if(!p)return;
+  let d=$('r35-season-set');if(!d){d=document.createElement('details');d.id='r35-season-set';p.append(d);}
+  d.innerHTML='<summary>🎉 Tema sazonal</summary><select id="r35-season-sel" style="width:100%;margin-top:8px"><option value="auto">Automático (conforme a data)</option><option value="off">Desligado</option>'+Object.entries(TH).map(([k,v])=>'<option value="'+k+'">'+v.n+'</option>').join('')+'</select>';
+  const s=$('r35-season-sel');s.value=localStorage.getItem(SK)||'auto';s.onchange=()=>{try{localStorage.setItem(SK,s.value);}catch(e){}season35();};}
+document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('#settings-open'))setTimeout(seasonSet35,0);});
+document.readyState==='loading'?addEventListener('DOMContentLoaded',season35):season35();
+window.__r35test={auto35,easter};
+})();
+</script>
+
+<style id="r36-css">
+/* NOVO — R36 */
+#r36-dlg{border:1px solid rgba(148,163,184,.4);border-radius:18px;padding:16px;max-width:min(440px,94vw);width:100%}
+html.dark #r36-dlg{background:#0f172a;color:#e2e8f0}
+html:not(.dark) #r36-dlg{background:#fff;color:#1e293b}
+#r36-dlg::backdrop{background:rgba(0,0,0,.5)}
+#r36-dlg label{display:block;font-size:12px;margin-top:8px;opacity:.85}
+#r36-dlg input,#r36-dlg select{width:100%;padding:8px 10px;border-radius:12px;border:1px solid rgba(148,163,184,.5);background:transparent;color:inherit;font:inherit}
+#r36-dlg select option{color:#111}
+</style>
+
+<script id="r36">
+// NOVO — R36: ganhos por mês (Nome | valor ✏️) e dívida manual. Bloco isolado: não altera funções existentes.
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(n||0);
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?NaN:Math.round(n*100)/100;};
+const fd=s=>s?String(s).split('-').reverse().join('/'):'—';
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+/*PURE-START*/
+const pad=n=>String(n).padStart(2,'0');
+const todayS=()=>new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+const ymd=(y,m,d)=>y+'-'+pad(m+1)+'-'+pad(d);
+const dueOf=(y,m,day)=>ymd(y,m,Math.min(day,dim(y,m)));
+function baseOf(d){const c=(d.corrections||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).pop();return c?{bal:c.balance,date:c.date}:{bal:d.balance0,date:d.refDate};}
+function firstDue(d){const p=d.refDate.split('-').map(Number);let Y=p[0],M=p[1]-1;if(dueOf(Y,M,d.dueDay)<=d.refDate){M++;if(M>11){M=0;Y++;}}return {Y,M};}
+function calc36(d,today){
+  const b=baseOf(d);let paid=0,extra=0;
+  Object.values(d.inst||{}).forEach(i=>{if(i.state==='PAID'&&i.paidDate&&i.paidDate>b.date)paid+=Number(i.amount)||0;});
+  (d.extras||[]).forEach(x=>{if(!x.void&&x.date>b.date)extra+=Number(x.amount)||0;});
+  const saldo=Math.round((b.bal-paid-extra)*100)/100;
+  const rem=saldo<=0?0:(d.monthly>0?Math.ceil(saldo/d.monthly-1e-9):null);
+  let est=null;
+  if(rem===0)est='Concluída';
+  else if(rem){const t=today>b.date?today:b.date,p=t.split('-').map(Number);let Y=p[0],M=p[1]-1;
+    if(dueOf(Y,M,d.dueDay)<t){M++;if(M>11){M=0;Y++;}}
+    M+=rem-1;Y+=Math.floor(M/12);M=M%12;est=dueOf(Y,M,d.dueDay);}
+  return {saldo,paid,extra,rem,est,base:b};
+}
+function instMonths(d,today){
+  const f=firstDue(d),t=today.split('-').map(Number),out=[];let Y=f.Y,M=f.M;
+  let end=Math.max(t[0]*12+(t[1]-1)+1,f.Y*12+f.M);
+  Object.keys(d.inst||{}).forEach(k=>{const p=k.split('-').map(Number);end=Math.max(end,p[0]*12+p[1]-1);});
+  let g=0;while(Y*12+M<=end&&g++<240){out.push(Y+'-'+pad(M+1));M++;if(M>11){M=0;Y++;}}
+  return out;
+}
+/*PURE-END*/
+window.__r36test={calc36,instMonths,firstDue,dueOf};
+
+/* ===== diálogo reutilizável ===== */
+const fld=(id,l,type,val,x)=>'<label for="'+id+'">'+l+'</label><input id="'+id+'" type="'+type+'" value="'+esc(val)+'" '+(x||'')+'>';
+const selF=(id,l,opts,cur)=>'<label for="'+id+'">'+l+'</label><select id="'+id+'">'+opts.map(o=>'<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select>';
+const v=id=>($(id)||{value:''}).value;
+function ask(title,body,ok,btns){
+  let D=$('r36-dlg');
+  if(!D){D=document.createElement('dialog');D.id='r36-dlg';D.innerHTML='<form id="r36-f"><h3 id="r36-t" style="font-weight:800;margin:0 0 4px"></h3><div id="r36-b"></div><p id="r36-e" style="color:#e11d48;font-size:12px;margin:8px 0 0"></p><div id="r36-a" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap"></div></form>';document.body.append(D);}
+  $('r36-t').textContent=title;$('r36-b').innerHTML=body;$('r36-e').textContent='';
+  const a=$('r36-a');a.innerHTML='';
+  const mk=(t,fn,primary)=>{const b=document.createElement('button');b.type=primary?'submit':'button';b.textContent=t;
+    b.style.cssText='padding:8px 14px;border-radius:12px;border:1px solid rgba(148,163,184,.5);font-weight:700;cursor:pointer;'+(primary?'background:#6366f1;color:#fff;border-color:#6366f1':'background:transparent;color:inherit');
+    if(fn)b.onclick=fn;a.append(b);};
+  (btns||[]).forEach(x=>mk(x[0],x[1]));mk('Cancelar',()=>D.close());mk('Guardar',null,true);
+  $('r36-f').onsubmit=e=>{e.preventDefault();const err=ok();if(err){$('r36-e').textContent=err;return;}D.close();};
+  D.showModal();
+}
+const OWNKEY={m:'M',s:'S',semperfif:'SEMPERFIF'};
+
+/* ===== GANHOS: linhas "Nome | valor ✏️", só no mês registado ===== */
+const meta=()=>{appData.ganhosMeta36=appData.ganhosMeta36||{};return appData.ganhosMeta36;};
+const ymk=(y,m)=>y+'-'+pad(Number(m)+1);
+window.customGainsCents36=function(month,inclLoja){
+  try{if(typeof appData==='undefined'||!appData||!appData.ganhosMeta36)return 0;
+    const own=currentTab==='geral'?(inclLoja?['M','S','SEMPERFIF']:['M','S']):[OWNKEY[currentTab]];
+    const key=ymk(Number(selectedYear),month);let c=0;
+    Object.values(appData.ganhosMeta36).forEach(g=>{if(own.includes(g.owner))c+=Math.round(Number((g.v||{})[key]||0)*100);});return c;
+  }catch(e){return 0;}
+};
+const gcommit=()=>{saveDataToLocalStorage();renderApp();try{playSoundForStatus('PAID');}catch(e){}};
+function gainRows36(){
+  const tb=$('table-body');if(!tb)return;tb.querySelectorAll('tr[data-r36]').forEach(r=>r.remove());
+  if(!['geral','m','s','semperfif'].includes(currentTab)||typeof appData==='undefined'||!appData)return;
+  const gainsMode=$('r28-gains')?.getAttribute('aria-pressed')==='true';
+  const months=selectedMonthIdx==='all'?[0,1,2,3,4,5,6,7,8,9,10,11]:[Number(selectedMonthIdx)];
+  Object.entries(meta()).filter(([k,g])=>currentTab==='geral'||g.owner===OWNKEY[currentTab]).forEach(([k,g])=>{
+    let sum=0;const tr=document.createElement('tr');tr.className='gain-row bg-emerald-500/5 font-bold';tr.dataset.r36='1';tr.hidden=!gainsMode;
+    const lab=g.owner==='SEMPERFIF'?'Loja':g.owner;
+    let h='<td class="p-3 sticky-col z-20 text-emerald-400 border-r border-slate-800/40"><button type="button" onclick="G36.editLine(\''+k+'\')" style="font:inherit;color:inherit;text-align:left;text-transform:uppercase">'+esc(g.name)+' <small style="opacity:.7">'+lab+'</small></button></td><td class="p-2 text-center font-black text-emerald-400">-</td><td class="p-2 text-center text-slate-400">-</td>';
+    months.forEach(m=>{const val=Number((g.v||{})[ymk(selectedYear,m)]||0);sum+=val;
+      h+='<td class="p-2 text-center font-black text-emerald-400 bg-emerald-500/10"><button type="button" onclick="G36.editCell(\''+k+'\','+m+')" class="px-2 py-1 hover:bg-emerald-400/20 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto"><span>+ '+(val>0?val.toFixed(2)+' €':'-')+'</span><span style="opacity:.7">✏️</span></button></td>';});
+    if(selectedMonthIdx==='all')h+='<td class="p-2 text-center font-black text-emerald-400">+ '+sum.toFixed(2)+' €</td>';
+    tr.innerHTML=h;tb.appendChild(tr);
+  });
+  const old=(appData.extraGains30||[]).filter(g=>!g.deleted);
+  if(old.length){const tr=document.createElement('tr');tr.className='gain-row';tr.dataset.r36='1';tr.hidden=!gainsMode;
+    tr.innerHTML='<td class="p-3 text-amber-400"><button type="button" onclick="G36.oldInfo()" style="font:inherit;color:inherit;text-align:left">⚠ '+old.length+' ganho(s) adicional(is) antigo(s) ainda contam no saldo — ver</button></td><td class="p-2 text-center">-</td><td class="p-2 text-center">-</td>';tb.appendChild(tr);}
+}
+window.G36={
+  add(){
+    const cur=/^\d+$/.test(String(selectedMonthIdx))?Number(selectedMonthIdx):new Date().getMonth();
+    ask('Novo ganho',fld('g-name','Nome do ganho','text','','maxlength="60"')+selF('g-own','Titular',[['M','M'],['S','S'],['SEMPERFIF','Semperfif']],OWNKEY[currentTab]||'M')+fld('g-val','Valor (€)','number','','step="0.01" min="0"')+selF('g-m','Mês ('+selectedYear+')',MONTHS.map((n,i)=>[i,n]),cur),()=>{
+      const name=v('g-name').trim(),val=num(v('g-val')),own=v('g-own'),m=Number(v('g-m'));
+      if(!name)return 'Indica o nome do ganho.';if(!(val>0))return 'Indica um valor superior a 0.';
+      const M=meta();let k=Object.keys(M).find(x=>M[x].owner===own&&M[x].name.toLowerCase()===name.toLowerCase());
+      if(!k){k='g_'+uid();M[k]={name,owner:own,v:{}};}M[k].v[ymk(selectedYear,m)]=val;gcommit();});
+  },
+  editCell(k,m){const g=meta()[k];if(!g)return;
+    ask(g.name+' · '+MONTHS[m]+' '+selectedYear,fld('g-val','Valor (€) — 0 para limpar','number',(g.v||{})[ymk(selectedYear,m)]||0,'step="0.01" min="0"'),()=>{
+      const val=num(v('g-val'));if(!(val>=0))return 'Indica um valor válido.';g.v=g.v||{};
+      if(val===0)delete g.v[ymk(selectedYear,m)];else g.v[ymk(selectedYear,m)]=val;gcommit();});},
+  editLine(k){const g=meta()[k];if(!g)return;
+    ask('Editar ganho',fld('g-name','Nome do ganho','text',g.name,'maxlength="60"')+selF('g-own','Titular',[['M','M'],['S','S'],['SEMPERFIF','Semperfif']],g.owner),()=>{
+      const name=v('g-name').trim();if(!name)return 'Indica o nome do ganho.';g.name=name;g.owner=v('g-own');gcommit();},
+      [['Eliminar linha',()=>{if(confirm('Eliminar “'+g.name+'” e os valores de todos os meses?')){delete meta()[k];$('r36-dlg').close();gcommit();}}]]);},
+  oldInfo(){alert('Ganhos adicionais antigos (ainda contam no saldo):\n\n'+(appData.extraGains30||[]).filter(g=>!g.deleted).map(g=>'• '+g.description+' · '+eur(Number(g.amount))+' · '+fd(g.date)+' · '+g.owner).join('\n'));}
+};
+// ALTERADO: o "+ Adicionar" em modo Ganhos abre o novo formulário (já não o painel de ganhos adicionais)
+window.openNewGainModalCustom=function(){G36.add();};
+const _rs=window.renderStandardTable;
+if(typeof _rs==='function')window.renderStandardTable=function(){const r=_rs.apply(this,arguments);try{gainRows36();}catch(e){console.error('R36',e);}return r;};
+
+/* ===== DÍVIDA MANUAL (isolada; só neste dispositivo) ===== */
+const DK='contas_debts_v36',OWN={M:'M',S:'S',BOTH:'Ambos'},OCOL={M:'#3b82f6',S:'#ec4899',BOTH:'#8b5cf6'};
+const dget=()=>{try{const d=JSON.parse(localStorage.getItem(DK)||'null');if(d&&Array.isArray(d.items))return d;}catch(e){}return {items:[],filter:'ALL',sel:null};};
+const dput=d=>{try{localStorage.setItem(DK,JSON.stringify(d));}catch(e){alert('Não foi possível guardar neste dispositivo.');}};
+const logd=(d,t)=>{(d.log=d.log||[]).push({ts:Date.now(),t});};
+const find=(D,id)=>D.items.find(x=>x.id===id);
+let view='cred';
+const pill=(on,txt,fn,col)=>'<button type="button" onclick="'+fn+'" style="padding:6px 12px;border-radius:99px;border:1px solid rgba(148,163,184,.5);font-weight:700;cursor:pointer;color:'+(on?'#fff':'inherit')+';background:'+(on?(col||'#6366f1'):'transparent')+'">'+txt+'</button>';
+const box=(t,val,c)=>'<div style="padding:10px;border-radius:14px;background:rgba(127,127,127,.10)"><div style="font-size:11px;opacity:.7">'+t+'</div><div style="font-weight:800;font-size:17px;'+(c?'color:'+c:'')+'">'+val+'</div></div>';
+const btn=(t,fn)=>'<button type="button" onclick="'+fn+'" style="padding:7px 12px;border-radius:12px;border:1px solid rgba(148,163,184,.5);background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer">'+t+'</button>';
+const IC={PENDING:'❌',SEPARATED:'🟡',PAID:'✅'},LB={PENDING:'Pendente',SEPARATED:'Separado',PAID:'Pago'};
+const rowS='display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(148,163,184,.25)';
+function paintDebts(){
+  const P=$('r36-panel');if(!P)return;const D=dget(),T=todayS();
+  const items=D.items.filter(x=>D.filter==='ALL'||x.owner===D.filter);
+  let s=find(D,D.sel);if(!s||!items.includes(s))s=items[0]||null;
+  let h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+[['ALL','Todos'],['M','M'],['S','S'],['BOTH','Ambos']].map(a=>pill(D.filter===a[0],a[1],"D36.filter('"+a[0]+"')")).join('')+'</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+items.map(x=>pill(s&&x.id===s.id,esc(x.name)+' · '+OWN[x.owner],"D36.pick('"+x.id+"')",OCOL[x.owner])).join('')+pill(false,'+ Nova dívida',"D36.newDebt()")+'</div>';
+  if(!s){P.innerHTML=h+'<p style="opacity:.7;font-size:13px">Ainda não há dívidas'+(D.items.length?' para este titular':'')+'. Cria a primeira em “+ Nova dívida”.</p>';return;}
+  const c=calc36(s,T),id=s.id;
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">'+box('Saldo em falta',eur(Math.max(c.saldo,0)),c.saldo<=0?'#10b981':'#f59e0b')+box('Meses restantes',c.rem===null?'—':String(c.rem))+box('Conclusão estimada',c.est==='Concluída'?'✅ Concluída':c.est?fd(c.est):'—')+box('Mensalidade',eur(s.monthly))+'</div>';
+  h+='<p style="font-size:12px;opacity:.75;margin:10px 0">Titular: <b>'+OWN[s.owner]+'</b> · Total de referência: '+eur(s.total)+' · Saldo confirmado: '+eur(c.base.bal)+' em '+fd(c.base.date)+' · Vence dia '+s.dueDay+' · Prestações pagas: '+eur(c.paid)+' · Extras: '+eur(c.extra)+'</p>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+btn('✏️ Editar',"D36.editDebt('"+id+"')")+btn('⚖️ Corrigir saldo',"D36.fix('"+id+"')")+btn('➕ Pagamento extra',"D36.addExtra('"+id+"')")+btn('🗑 Eliminar',"D36.delDebt('"+id+"')")+'</div>';
+  h+='<h4 style="font-weight:800;margin:8px 0 2px">Prestações mensais</h4>';
+  h+=instMonths(s,T).reverse().map(k=>{const i=(s.inst||{})[k]||{state:'PENDING'},p=k.split('-').map(Number),due=dueOf(p[0],p[1]-1,s.dueDay),amt=i.amount!=null?i.amount:s.monthly;
+    return '<div style="'+rowS+'"><button type="button" onclick="D36.cycle(\''+id+'\',\''+k+'\')" title="Mudar estado" style="font-size:20px;background:none;border:0;cursor:pointer">'+IC[i.state||'PENDING']+'</button><div style="flex:1"><b>'+MONTHS[p[1]-1]+' '+p[0]+'</b><div style="font-size:11px;opacity:.7">'+LB[i.state||'PENDING']+' · vence '+fd(due)+(i.state==='PAID'?' · pago em '+fd(i.paidDate):'')+'</div></div><b>'+eur(amt)+'</b><button type="button" onclick="D36.editInst(\''+id+'\',\''+k+'\')" style="background:none;border:0;cursor:pointer">✏️</button></div>';}).join('');
+  h+='<h4 style="font-weight:800;margin:14px 0 2px">Pagamentos extra</h4>';
+  h+=(s.extras||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts).map(x=>'<div style="'+rowS+(x.void?';opacity:.5;text-decoration:line-through':'')+'"><div><b>'+fd(x.date)+'</b>'+(x.note?'<div style="font-size:11px;opacity:.7">'+esc(x.note)+'</div>':'')+'</div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;opacity:.7">abate '+eur(x.amount)+'</span><b>'+eur(x.amount)+'</b>'+btn(x.void?'Reativar':'Anular',"D36.toggleExtra('"+id+"','"+x.id+"')")+'</div></div>').join('')||'<p style="font-size:12px;opacity:.7">Sem pagamentos extra.</p>';
+  h+='<details style="margin-top:14px"><summary style="font-weight:800;cursor:pointer">Histórico e auditoria ('+(s.log||[]).length+')</summary>'+(s.log||[]).slice().reverse().map(l=>'<div style="'+rowS+';font-size:12px"><span>'+esc(l.t)+'</span><span style="opacity:.6;white-space:nowrap">'+new Date(l.ts).toLocaleString('pt-PT')+'</span></div>').join('')+'</details>';
+  P.innerHTML=h;
+}
+function mount(){
+  const host=$('credit-container');if(!host)return;host.querySelector('#r36-bar')?.remove();host.querySelector('#r36-panel')?.remove();
+  const bar=document.createElement('div');bar.id='r36-bar';bar.style.cssText='display:flex;gap:8px;padding:12px 16px 0;flex-wrap:wrap';
+  bar.innerHTML=pill(view==='cred','🏛️ Créditos',"D36.view('cred')",'#f59e0b')+pill(view==='debt','🧾 Dívidas manuais',"D36.view('debt')");host.prepend(bar);
+  [...host.children].forEach(c=>{if(c.id!=='r36-bar')c.style.display=view==='debt'?'none':'';});
+  if(view==='debt'){const p=document.createElement('div');p.id='r36-panel';p.style.cssText='padding:12px 16px 16px';host.append(p);paintDebts();}
+}
+const dateOk=x=>/^\d{4}-\d{2}-\d{2}$/.test(x);
+const upd=fn=>{const D=dget();fn(D);dput(D);paintDebts();};
+window.D36={
+  view(x){view=x;mount();},
+  filter(k){upd(D=>{D.filter=k;});},
+  pick(id){upd(D=>{D.sel=id;});},
+  newDebt(){
+    ask('Nova dívida manual',fld('d-name','Nome','text','','maxlength="60"')+selF('d-own','Titular',[['M','M'],['S','S'],['BOTH','Ambos']],'M')+fld('d-tot','Total de referência (€)','number','','step="0.01" min="0"')+fld('d-bal','Saldo em dívida confirmado (€)','number','','step="0.01" min="0"')+fld('d-mon','Mensalidade (€)','number','','step="0.01" min="0"')+fld('d-ref','Data de referência (do saldo)','date',todayS())+fld('d-due','Dia de vencimento (1–31)','number',1,'min="1" max="31"'),()=>{
+      const name=v('d-name').trim(),tot=num(v('d-tot')),bal=num(v('d-bal')),mon=num(v('d-mon')),ref=v('d-ref'),due=parseInt(v('d-due'),10);
+      if(!name)return 'Indica o nome.';if(!(tot>=0))return 'Total de referência inválido.';if(!(bal>=0))return 'Saldo confirmado inválido.';if(!(mon>=0))return 'Mensalidade inválida.';
+      if(!dateOk(ref))return 'Indica a data de referência.';if(!(due>=1&&due<=31))return 'O dia de vencimento tem de estar entre 1 e 31.';
+      upd(D=>{const d={id:uid(),name,owner:v('d-own'),total:tot,balance0:bal,monthly:mon,refDate:ref,dueDay:due,inst:{},extras:[],corrections:[],log:[]};
+        logd(d,'Dívida criada · saldo confirmado '+eur(bal)+' em '+fd(ref));D.items.push(d);D.sel=d.id;if(D.filter!=='ALL'&&D.filter!==d.owner)D.filter='ALL';});});
+  },
+  editDebt(id){const d=find(dget(),id);if(!d)return;
+    ask('Editar dívida',fld('d-name','Nome','text',d.name,'maxlength="60"')+selF('d-own','Titular',[['M','M'],['S','S'],['BOTH','Ambos']],d.owner)+fld('d-tot','Total de referência (€)','number',d.total,'step="0.01" min="0"')+fld('d-mon','Mensalidade (€)','number',d.monthly,'step="0.01" min="0"')+fld('d-due','Dia de vencimento (1–31)','number',d.dueDay,'min="1" max="31"'),()=>{
+      const name=v('d-name').trim(),tot=num(v('d-tot')),mon=num(v('d-mon')),due=parseInt(v('d-due'),10);
+      if(!name)return 'Indica o nome.';if(!(tot>=0)||!(mon>=0))return 'Valores inválidos.';if(!(due>=1&&due<=31))return 'O dia de vencimento tem de estar entre 1 e 31.';
+      upd(D=>{const x=find(D,id);x.name=name;x.owner=v('d-own');x.total=tot;x.monthly=mon;x.dueDay=due;logd(x,'Dados editados · mensalidade '+eur(mon)+' · vencimento dia '+due);});});},
+  fix(id){const d=find(dget(),id);if(!d)return;const c=calc36(d,todayS());
+    ask('Corrigir saldo',fld('f-bal','Novo saldo em dívida confirmado (€)','number','','step="0.01" min="0"')+fld('f-date','Data da confirmação','date',todayS())+fld('f-note','Nota (opcional)','text','','maxlength="80"')+'<p style="font-size:12px;opacity:.75">Saldo calculado agora: '+eur(c.saldo)+'. O novo saldo passa a ser a base; o anterior fica no histórico.</p>',()=>{
+      const bal=num(v('f-bal')),date=v('f-date');if(!(bal>=0))return 'Indica um saldo válido.';if(!dateOk(date))return 'Indica a data.';
+      if(date<c.base.date)return 'A data tem de ser igual ou posterior à última referência ('+fd(c.base.date)+').';
+      upd(D=>{const x=find(D,id);x.corrections.push({id:uid(),balance:bal,date,prev:c.saldo,note:v('f-note').trim(),ts:Date.now()});logd(x,'Correção de saldo: '+eur(c.saldo)+' → '+eur(bal)+' em '+fd(date)+(v('f-note').trim()?' · '+v('f-note').trim():''));});});},
+  addExtra(id){const d=find(dget(),id);if(!d)return;const c=calc36(d,todayS());
+    ask('Pagamento extra',fld('x-amt','Valor pago (€)','number','','step="0.01" min="0"')+fld('x-date','Data','date',todayS())+fld('x-note','Nota (opcional)','text','','maxlength="80"')+'<p style="font-size:12px;opacity:.75">Abate ao saldo o valor indicado. Não cria despesa na Vista Geral, M ou S.</p>',()=>{
+      const amt=num(v('x-amt')),date=v('x-date');if(!(amt>0))return 'Indica um valor superior a 0.';if(!dateOk(date))return 'Indica a data.';
+      if(amt>c.saldo+.005&&!confirm('O valor é superior ao saldo em falta ('+eur(c.saldo)+'). Registar mesmo assim?'))return 'Registo cancelado.';
+      upd(D=>{const x=find(D,id);x.extras.push({id:uid(),amount:amt,date,note:v('x-note').trim(),ts:Date.now(),void:false});logd(x,'Pagamento extra '+eur(amt)+' em '+fd(date));});});},
+  toggleExtra(id,eid){upd(D=>{const d=find(D,id),x=d&&d.extras.find(e=>e.id===eid);if(!x)return;
+    if(!x.void&&!confirm('Anular este pagamento extra? Pode reativá-lo depois.'))return;x.void=!x.void;logd(d,'Extra de '+eur(x.amount)+' ('+fd(x.date)+') '+(x.void?'anulado':'reativado'));});},
+  delDebt(id){const D=dget(),d=find(D,id);if(!d)return;if(!confirm('Eliminar a dívida “'+d.name+'” e todo o histórico? Não dá para desfazer.'))return;
+    D.items=D.items.filter(x=>x.id!==id);D.sel=null;dput(D);paintDebts();},
+  cycle(id,k){upd(D=>{const d=find(D,id);if(!d)return;d.inst=d.inst||{};const i=d.inst[k]||{state:'PENDING'},nx={PENDING:'SEPARATED',SEPARATED:'PAID',PAID:'PENDING'}[i.state||'PENDING'];
+    i.state=nx;if(i.amount==null)i.amount=d.monthly;i.paidDate=nx==='PAID'?(i.paidDate||todayS()):null;d.inst[k]=i;
+    const p=k.split('-').map(Number);logd(d,'Prestação '+MONTHS[p[1]-1]+' '+p[0]+': '+LB[nx]+(nx==='PAID'?' · '+eur(i.amount)+' em '+fd(i.paidDate):''));});},
+  editInst(id,k){const d=find(dget(),id);if(!d)return;const i=(d.inst||{})[k]||{state:'PENDING'};
+    ask('Prestação '+k.split('-').reverse().join('/'),selF('i-st','Estado',[['PENDING','❌ Pendente'],['SEPARATED','🟡 Separado'],['PAID','✅ Pago']],i.state||'PENDING')+fld('i-amt','Valor efetivo (€)','number',i.amount!=null?i.amount:d.monthly,'step="0.01" min="0"')+fld('i-date','Data de pagamento','date',i.paidDate||''),()=>{
+      const st=v('i-st'),amt=num(v('i-amt')),date=v('i-date');if(!(amt>=0))return 'Indica um valor válido.';if(st==='PAID'&&!dateOk(date))return 'Indica a data de pagamento.';
+      upd(D=>{const x=find(D,id);x.inst=x.inst||{};x.inst[k]={state:st,amount:amt,paidDate:st==='PAID'?date:null};const p=k.split('-').map(Number);logd(x,'Prestação '+MONTHS[p[1]-1]+' '+p[0]+' editada: '+LB[st]+' · '+eur(amt)+(st==='PAID'?' em '+fd(date):''));});});}
+};
+const _rc=window.renderUnifiedCreditsScreen;
+if(typeof _rc==='function')window.renderUnifiedCreditsScreen=function(){const r=_rc.apply(this,arguments);try{mount();}catch(e){console.error('R36',e);}return r;};
 })();
 </script>
 </body>
