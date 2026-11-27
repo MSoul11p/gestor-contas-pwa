@@ -1891,14 +1891,6 @@ function loadLocalStorageData() {
         }));
         saveDataToLocalStorage();
     }
-    // NOVO — garante campos sincronizáveis sem alterar dados existentes
-    appData.visualPrefs30 = appData.visualPrefs30 || {};
-    appData.manualCredits30 = Array.isArray(appData.manualCredits30) ? appData.manualCredits30 : [];
-    // NOVO — aplica preferências visuais guardadas no estado sincronizado
-    if (appData.visualPrefs30 && Object.keys(appData.visualPrefs30).length) {
-        viewPrefs = JSON.parse(JSON.stringify(appData.visualPrefs30));
-        try { localStorage.setItem('contas_pwa_visual_v1', JSON.stringify(viewPrefs)); } catch (e) {}
-    }
 }
 function saveDataToLocalStorage() {
     localStorage.setItem('contas_pwa_manual_v1', JSON.stringify(appData));
@@ -3020,11 +3012,6 @@ document.addEventListener('DOMContentLoaded',()=>{
             };
             localStorage.setItem('contas_pwa_visual_v1',JSON.stringify(next));
             viewPrefs=next;
-            // NOVO — sincroniza logo/texto/efeito; o fundo fica apenas neste dispositivo
-            const syncPrefs=JSON.parse(JSON.stringify(next));
-            Object.values(syncPrefs).forEach(p=>{delete p.background;});
-            appData.visualPrefs30=syncPrefs;
-            saveDataToLocalStorage();
             renderApp();
             close()
         }
@@ -3225,11 +3212,6 @@ playSoundForStatus=async function(status){
     function apply(data){
         if(!data||!Array.isArray(data.appData?.accounts)||!data.appData.ganhos||!['casa','carro','credito_ab'].every(k=>Array.isArray(data.credits?.[k])))throw Error('Estado incompleto. Não foram inicializados dados vazios.');
         appData=data.appData;
-        // NOVO — aplica preferências visuais recebidas do Sheets
-        if(appData.visualPrefs30&&typeof appData.visualPrefs30==='object'){
-            viewPrefs=JSON.parse(JSON.stringify(appData.visualPrefs30));
-            try{localStorage.setItem('contas_pwa_visual_v1',JSON.stringify(viewPrefs));}catch(e){}
-        }
         [[CREDIT_CASA_DATA,data.credits.casa],[CREDIT_CARRO_DATA,data.credits.carro],[CREDIT_AB_DATA,data.credits.credito_ab]].forEach(([to,from])=>to.splice(0,to.length,...from));
         appData.accounts.forEach(migrateAnnualStates);
         renderApp();
@@ -8413,8 +8395,7 @@ function handleCreateManualCredit(e) {
             creditMonths: months,
             creditEndDate: enddate
         });
-        // ALTERADO — usa a função de gravação/sincronização existente
-        saveDataToLocalStorage();
+        saveAccountsToLocalStorage();
     }
     document.getElementById('modal-new-credit').classList.add('hidden');
     renderApp();
@@ -8707,9 +8688,7 @@ function renderUnifiedCreditsScreen() {
                     Total em dívida: <strong class="text-slate-200">${globalFalta.toFixed(2)} €</strong> · Mensalidades: <strong class="text-slate-200">${globalMensal.toFixed(2)} €/mês</strong>
                 </p>
             </div>
-            <button onclick="openNewCreditModal()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md cartoon-bounce">
-                + Novo Crédito / Dívida
-            </button>
+            <!-- ALTERADO: botão "+ Novo Crédito / Dívida" removido (substituído pelo registo/dívida manual) -->
         </div>
 
         <div class="px-4 py-3 bg-slate-950/40 border-b border-slate-800/80 flex flex-col gap-2.5">
@@ -9272,6 +9251,87 @@ window.D36={
 };
 const _rc=window.renderUnifiedCreditsScreen;
 if(typeof _rc==='function')window.renderUnifiedCreditsScreen=function(){const r=_rc.apply(this,arguments);try{mount();}catch(e){console.error('R36',e);}return r;};
+})();
+</script>
+
+<script id="r37">
+// NOVO — R37: (1) alinhar linhas de ganhos R36 com as restantes; (2) sincronizar registo de pagamentos, dívidas/créditos manuais e logos entre dispositivos.
+// Bloco isolado: não altera funções existentes (apenas encapsula, como as revisões anteriores).
+(()=>{'use strict';
+/* ---------- 1) GANHOS: mesma estrutura de colunas que "Ordenado M/S" ---------- */
+function alinharGanhos37(){
+  try{
+    if(typeof selectedMonthIdx==='undefined'||selectedMonthIdx==='all')return;
+    document.querySelectorAll('#table-body tr[data-r36]').forEach(row=>{
+      if(row.dataset.a37)return;
+      const c=row.children;if(c.length<4)return;
+      const value=c[1],month=c[3],wrap=document.createElement('div');
+      wrap.className='unified-value';
+      while(month.firstChild)wrap.append(month.firstChild);
+      value.replaceChildren(wrap);month.remove();row.dataset.a37='1';
+    });
+  }catch(e){console.error('R37 ganhos',e);}
+}
+const _rs37=window.renderStandardTable;
+if(typeof _rs37==='function')window.renderStandardTable=function(){const r=_rs37.apply(this,arguments);alinharGanhos37();return r;};
+
+/* ---------- 2) SINCRONIZAÇÃO: guarda cópia em appData.sync37 (já enviado pelo Sheets) ---------- */
+const VIS='contas_pwa_visual_v1';
+const KEYS=['contas_credit_ledger_v35','contas_debts_v36','contas_manual_credits_v1',VIS,'contas_ms_logo_frame_r28'];
+const _set=Storage.prototype.setItem;
+let restaurando=false,agendado=false;
+const parse=t=>{try{return JSON.parse(t);}catch(e){return null;}};
+// Cópia a enviar: logos sem fundos (ficam só no dispositivo) e dívidas sem estado de ecrã (filtro/seleção)
+function embalar37(k,txt){
+  if(txt==null)return null;
+  if(k===VIS){const o=parse(txt)||{},out={};Object.keys(o).forEach(v=>{const p=o[v]||{},q={};['logoImage','logoText','clickEffect'].forEach(f=>{if(p[f])q[f]=p[f];});if(Object.keys(q).length)out[v]=q;});return JSON.stringify(out);}
+  if(k==='contas_debts_v36'){const o=parse(txt);return JSON.stringify({items:(o&&o.items)||[]});}
+  return txt;
+}
+function fundir37(k,local,remoto){
+  if(k===VIS){const L=parse(local)||{},R=parse(remoto)||{},out={};
+    new Set([...Object.keys(L),...Object.keys(R)]).forEach(v=>{const p={...(L[v]||{})};['logoImage','logoText','clickEffect'].forEach(f=>delete p[f]);Object.assign(p,R[v]||{});if(Object.keys(p).length)out[v]=p;});
+    return JSON.stringify(out);}
+  if(k==='contas_debts_v36'){const L=parse(local)||{},R=parse(remoto)||{};return JSON.stringify({items:R.items||[],filter:L.filter||'ALL',sel:L.sel||null});}
+  return remoto;
+}
+function espelhar37(k){
+  try{
+    if(typeof appData==='undefined'||!appData)return;
+    const v=embalar37(k,localStorage.getItem(k));
+    appData.sync37=appData.sync37||{};
+    if(v==null){if(!(k in appData.sync37))return;delete appData.sync37[k];}
+    else{if(appData.sync37[k]===v)return;appData.sync37[k]=v;}
+    if(!agendado){agendado=true;setTimeout(()=>{agendado=false;try{saveDataToLocalStorage();}catch(e){}},0);}
+  }catch(e){console.error('R37 espelhar',e);}
+}
+Storage.prototype.setItem=function(k,v){
+  const r=_set.apply(this,arguments);
+  if(this===localStorage&&!restaurando&&KEYS.includes(k))espelhar37(k);
+  return r;
+};
+// Ao carregar do Sheets: o servidor manda; o que só existe neste dispositivo é enviado (nada é apagado)
+function restaurar37(){
+  restaurando=true;let semear=false;
+  try{
+    appData.sync37=appData.sync37||{};const S=appData.sync37;
+    KEYS.forEach(k=>{
+      const local=localStorage.getItem(k);
+      if(S[k]!=null){
+        const novo=fundir37(k,local,S[k]);
+        if(novo!==local){if(local!=null&&k!==VIS)_set.call(localStorage,'contas_sync37_bak_'+k,local);_set.call(localStorage,k,novo);}
+      }else if(local!=null){const v=embalar37(k,local);if(v!=null&&v!=='{}'){S[k]=v;semear=true;}}
+    });
+    const p=parse(localStorage.getItem(VIS));if(p&&typeof viewPrefs!=='undefined')viewPrefs=p;
+  }catch(e){console.error('R37 restaurar',e);}
+  restaurando=false;
+  try{renderApp();}catch(e){}
+  if(semear){try{saveDataToLocalStorage();}catch(e){}}
+}
+if(typeof PWASync!=='undefined'&&PWASync&&typeof PWASync.loaded==='function'){
+  const _ld=PWASync.loaded;
+  PWASync.loaded=function(){const r=_ld.apply(this,arguments);setTimeout(restaurar37,0);return r;};
+}
 })();
 </script>
 </body>
