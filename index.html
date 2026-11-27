@@ -2421,9 +2421,7 @@ function renderStandardTable() {
             {
                 key: 's', name: 'ORDENADO S' 
             },
-            {
-                key: 'semperfif', name: 'GANHOS LOJA' 
-            }
+            // ALTERADO: GANHOS LOJA já não aparece na Vista Geral
             ];
         }
         else if (currentTab === 'm') {
@@ -6635,9 +6633,9 @@ html.dark .r27-danger button {
                 }
                 // Compatibilidade explícita: a versão recebida partilha ganhos entre 2026/2027.
                 // Não copiar esses valores para anos novos nem alterar esse modelo silenciosamente.
-                income += (window.customGainsCents36 ? customGainsCents36(month, true) : 0); // ALTERADO: ganhos criados com + Adicionar
+                income += (window.customGainsCents36 ? customGainsCents36(month, false) : 0); // ALTERADO: ganhos criados com + Adicionar; Loja fora da Vista Geral
                 if (Number(selectedYear) > 2027) continue;
-                const keys = currentTab === 'geral' ? ['m', 's', 'semperfif'] : [currentTab];
+                const keys = currentTab === 'geral' ? ['m', 's'] : [currentTab]; // ALTERADO: sem Loja na Vista Geral
                 for (const key of keys) income += Math.round(Number(appData.ganhos[key]?.[month] || 0) * 100);
             }
             return { expense, income, balance: income - expense };
@@ -8476,7 +8474,7 @@ function renderAnnualMonthsGrid() {
             mInc += Number(appData.ganhos?.[currentTab]?.[mIdx] || 0);
         }
 
-        (appData.extraGains30||[]).forEach(g=>{if(g.deleted)return;const d=String(g.date||'');if(Number(d.slice(0,4))!==Number(selectedYear)||Number(d.slice(5,7))-1!==mIdx)return;const o=g.owner,t=currentTab;const ok=t==='geral'||(t==='semperfif'?o==='SEMPERFIF':t==='m'?(o==='M'||o==='BOTH'):(o==='S'||o==='BOTH'));if(!ok)return;mInc+=(o==='BOTH'&&(t==='m'||t==='s'))?Number(g.amount)/2:Number(g.amount);});
+        (appData.extraGains30||[]).forEach(g=>{if(g.deleted)return;const d=String(g.date||'');if(Number(d.slice(0,4))!==Number(selectedYear)||Number(d.slice(5,7))-1!==mIdx)return;const o=g.owner,t=currentTab;const ok=(t==='geral'?o!=='SEMPERFIF':false)||(t==='semperfif'?o==='SEMPERFIF':t==='m'?(o==='M'||o==='BOTH'):(o==='S'||o==='BOTH'));if(!ok)return;mInc+=(o==='BOTH'&&(t==='m'||t==='s'))?Number(g.amount)/2:Number(g.amount);});
         const mBal = mInc - mExp;
         return `
             <div onclick="selectAnnualMonth(${mIdx})" class="annual-month-card cartoon-bounce flex flex-col justify-between">
@@ -9133,7 +9131,7 @@ function gainRows36(){
   if(!['geral','m','s','semperfif'].includes(currentTab)||typeof appData==='undefined'||!appData)return;
   const gainsMode=$('r28-gains')?.getAttribute('aria-pressed')==='true';
   const months=selectedMonthIdx==='all'?[0,1,2,3,4,5,6,7,8,9,10,11]:[Number(selectedMonthIdx)];
-  Object.entries(meta()).filter(([k,g])=>currentTab==='geral'||g.owner===OWNKEY[currentTab]).forEach(([k,g])=>{
+  Object.entries(meta()).filter(([k,g])=>currentTab==='geral'?g.owner!=='SEMPERFIF':g.owner===OWNKEY[currentTab]) /* ALTERADO: sem Loja na Vista Geral */.forEach(([k,g])=>{
     let sum=0;const tr=document.createElement('tr');tr.className='gain-row bg-emerald-500/5 font-bold';tr.dataset.r36='1';tr.hidden=!gainsMode;
     const lab=g.owner==='SEMPERFIF'?'Loja':g.owner;
     let h='<td class="p-3 sticky-col z-20 text-emerald-400 border-r border-slate-800/40"><button type="button" onclick="G36.editLine(\''+k+'\')" style="font:inherit;color:inherit;text-align:left;text-transform:uppercase">'+esc(g.name)+' <small style="opacity:.7">'+lab+'</small></button></td><td class="p-2 text-center font-black text-emerald-400">-</td><td class="p-2 text-center text-slate-400">-</td>';
@@ -9142,7 +9140,7 @@ function gainRows36(){
     if(selectedMonthIdx==='all')h+='<td class="p-2 text-center font-black text-emerald-400">+ '+sum.toFixed(2)+' €</td>';
     tr.innerHTML=h;tb.appendChild(tr);
   });
-  const old=(appData.extraGains30||[]).filter(g=>!g.deleted);
+  const old=(appData.extraGains30||[]).filter(g=>!g.deleted&&!(currentTab==='geral'&&g.owner==='SEMPERFIF')); // ALTERADO
   if(old.length){const tr=document.createElement('tr');tr.className='gain-row';tr.dataset.r36='1';tr.hidden=!gainsMode;
     tr.innerHTML='<td class="p-3 text-amber-400"><button type="button" onclick="G36.oldInfo()" style="font:inherit;color:inherit;text-align:left">⚠ '+old.length+' ganho(s) adicional(is) antigo(s) ainda contam no saldo — ver</button></td><td class="p-2 text-center">-</td><td class="p-2 text-center">-</td>';tb.appendChild(tr);}
 }
@@ -9254,9 +9252,15 @@ if(typeof _rc==='function')window.renderUnifiedCreditsScreen=function(){const r=
 })();
 </script>
 
+<style id="r37-css">
+/* NOVO — R37: logos do menu flutuante em quadrado arredondado (como o cabeçalho) */
+body[data-r31] #glass-dock .nav-tab-btn img.view-logo,#glass-dock .nav-tab-btn img.view-logo{width:28px!important;height:28px!important;padding:0!important;border-radius:8px!important;object-fit:cover!important;object-position:center!important;aspect-ratio:1;flex-shrink:0;overflow:hidden}
+/* NOVO — R37: "+ Nova dívida" destacado e à direita */
+#r36-panel button[onclick^="D36.newDebt"]{margin-left:auto!important;background:#10b981!important;color:#fff!important;border-color:#10b981!important;font-weight:800!important;padding:8px 16px!important;box-shadow:0 4px 12px rgba(16,185,129,.4)}
+</style>
 <script id="r37">
-// NOVO — R37: (1) alinhar linhas de ganhos R36 com as restantes; (2) sincronizar registo de pagamentos, dívidas/créditos manuais e logos entre dispositivos.
-// Bloco isolado: não altera funções existentes (apenas encapsula, como as revisões anteriores).
+// NOVO — R37: (1) alinhar linhas de ganhos R36; (2) sincronizar registo, dívidas/créditos manuais, logos e preferência de som; (3) emoji ✏️ em tudo o que seja editar.
+// Bloco isolado: não altera funções existentes.
 (()=>{'use strict';
 /* ---------- 1) GANHOS: mesma estrutura de colunas que "Ordenado M/S" ---------- */
 function alinharGanhos37(){
@@ -9275,13 +9279,12 @@ function alinharGanhos37(){
 const _rs37=window.renderStandardTable;
 if(typeof _rs37==='function')window.renderStandardTable=function(){const r=_rs37.apply(this,arguments);alinharGanhos37();return r;};
 
-/* ---------- 2) SINCRONIZAÇÃO: guarda cópia em appData.sync37 (já enviado pelo Sheets) ---------- */
+/* ---------- 2) SINCRONIZAÇÃO: cópia em appData.sync37 (já enviado pelo Sheets) ---------- */
 const VIS='contas_pwa_visual_v1';
-const KEYS=['contas_credit_ledger_v35','contas_debts_v36','contas_manual_credits_v1',VIS,'contas_ms_logo_frame_r28'];
+const KEYS=['contas_credit_ledger_v35','contas_debts_v36','contas_manual_credits_v1',VIS,'contas_ms_logo_frame_r28','contas_ms_effects30'];
 const _set=Storage.prototype.setItem;
 let restaurando=false,agendado=false;
 const parse=t=>{try{return JSON.parse(t);}catch(e){return null;}};
-// Cópia a enviar: logos sem fundos (ficam só no dispositivo) e dívidas sem estado de ecrã (filtro/seleção)
 function embalar37(k,txt){
   if(txt==null)return null;
   if(k===VIS){const o=parse(txt)||{},out={};Object.keys(o).forEach(v=>{const p=o[v]||{},q={};['logoImage','logoText','clickEffect'].forEach(f=>{if(p[f])q[f]=p[f];});if(Object.keys(q).length)out[v]=q;});return JSON.stringify(out);}
@@ -9310,7 +9313,6 @@ Storage.prototype.setItem=function(k,v){
   if(this===localStorage&&!restaurando&&KEYS.includes(k))espelhar37(k);
   return r;
 };
-// Ao carregar do Sheets: o servidor manda; o que só existe neste dispositivo é enviado (nada é apagado)
 function restaurar37(){
   restaurando=true;let semear=false;
   try{
@@ -9332,6 +9334,26 @@ if(typeof PWASync!=='undefined'&&PWASync&&typeof PWASync.loaded==='function'){
   const _ld=PWASync.loaded;
   PWASync.loaded=function(){const r=_ld.apply(this,arguments);setTimeout(restaurar37,0);return r;};
 }
+
+/* ---------- 3) ✏️ em tudo o que seja editar ---------- */
+function marcarEditar37(){
+  try{
+    document.querySelectorAll('i[data-lucide="pencil"],svg.lucide-pencil,svg[data-lucide="pencil"]').forEach(n=>{
+      const e=document.createElement('span');e.className='edit-emoji37';e.setAttribute('aria-hidden','true');e.textContent='✏️';e.style.fontSize='12px';e.style.lineHeight='1';
+      n.replaceWith(e);
+    });
+    document.querySelectorAll('button,summary,h2,h3,h4,legend').forEach(n=>{
+      const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT);let first=null,x;
+      while((x=w.nextNode())){if(x.nodeValue.trim()){first=x;break;}}
+      if(!first||n.textContent.includes('✏'))return;
+      if(/^\s*Editar\b/i.test(first.nodeValue))first.nodeValue=first.nodeValue.replace(/^(\s*)/,'$1✏️ ');
+    });
+  }catch(e){console.error('R37 editar',e);}
+}
+let rafEd=0;
+const obsEd=new MutationObserver(()=>{if(rafEd)return;rafEd=requestAnimationFrame(()=>{rafEd=0;marcarEditar37();});});
+const iniEd=()=>{marcarEditar37();obsEd.observe(document.body,{childList:true,subtree:true});};
+document.readyState==='loading'?document.addEventListener('DOMContentLoaded',iniEd):iniEd();
 })();
 </script>
 </body>
